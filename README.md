@@ -53,6 +53,12 @@ AnimeMiTV 是一个面向 Google TV / Android TV 的第三方 Anime1 客户端�
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
+应用版本统一记录在根目录 `version.properties`。修改版本后可运行以下命令校验 SemVer 和 Android `versionCode`：
+
+```bash
+./gradlew checkVersion
+```
+
 若终端找不到 Java，可使用 Android Studio 自带的 JDK：
 
 ```bash

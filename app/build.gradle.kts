@@ -3,6 +3,9 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val appVersionName = rootProject.extra["appVersionName"] as String
+val appVersionCode = rootProject.extra["appVersionCode"] as Int
+
 android {
     namespace = "com.ljworks.animemitv"
     compileSdk {
@@ -11,10 +14,10 @@ android {
 
     defaultConfig {
         applicationId = "com.ljworks.animemitv"
+        versionCode = appVersionCode
+        versionName = appVersionName
         minSdk = 29
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
 
     }
 
