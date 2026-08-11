@@ -1,6 +1,8 @@
 package com.ljworks.animemitv
 
+import android.content.Context
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -32,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,7 +44,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -53,6 +60,51 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.ljworks.animemitv.ui.theme.AnimeMiTVTheme
+
+internal fun seekPosition(currentPosition: Long, duration: Long, offset: Long): Long {
+    val target = (currentPosition + offset).coerceAtLeast(0L)
+    return if (duration != C.TIME_UNSET && duration >= 0) target.coerceAtMost(duration) else target
+}
+
+@androidx.annotation.OptIn(markerClass = [UnstableApi::class])
+private class AnimePlayerView(context: Context) : PlayerView(context) {
+    init {
+        isFocusable = true
+        isFocusableInTouchMode = true
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action != KeyEvent.ACTION_DOWN || event.repeatCount > 0) {
+            return super.dispatchKeyEvent(event)
+        }
+        val activePlayer = player ?: return super.dispatchKeyEvent(event)
+        return when (event.keyCode) {
+            KeyEvent.KEYCODE_DPAD_CENTER,
+            KeyEvent.KEYCODE_ENTER,
+            KeyEvent.KEYCODE_NUMPAD_ENTER,
+            -> {
+                if (activePlayer.isPlaying) activePlayer.pause() else activePlayer.play()
+                showController()
+                true
+            }
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                seekBy(activePlayer, -10_000L)
+                showController()
+                true
+            }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                seekBy(activePlayer, 10_000L)
+                showController()
+                true
+            }
+            else -> super.dispatchKeyEvent(event)
+        }
+    }
+
+    private fun seekBy(activePlayer: Player, offset: Long) {
+        activePlayer.seekTo(seekPosition(activePlayer.currentPosition, activePlayer.duration, offset))
+    }
+}
 
 class MainActivity : ComponentActivity() {
     private val animeViewModel by viewModels<AnimeViewModel> {
@@ -132,10 +184,13 @@ private fun SideBar() {
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun AnimeGrid(page: AnimePage, focusedAnimeId: Int?, viewModel: AnimeViewModel) {
+    val gridState = rememberLazyGridState()
     val firstCardRequester = remember { FocusRequester() }
     val targetAnimeId = page.items.firstOrNull { it.id == focusedAnimeId }?.id ?: page.items.firstOrNull()?.id
+    val targetAnimeIndex = page.items.indexOfFirst { it.id == targetAnimeId }
+    var focusRestored by remember(targetAnimeId) { mutableStateOf(false) }
     LaunchedEffect(page.pageIndex, targetAnimeId) {
-        if (targetAnimeId != null) firstCardRequester.requestFocus()
+        if (targetAnimeIndex >= 0) gridState.scrollToItem(targetAnimeIndex)
     }
     Column(modifier = Modifier.fillMaxSize()) {
         if (page.hasPrevious) {
@@ -147,6 +202,7 @@ private fun AnimeGrid(page: AnimePage, focusedAnimeId: Int?, viewModel: AnimeVie
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
+                state = gridState,
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(18.dp),
@@ -155,7 +211,20 @@ private fun AnimeGrid(page: AnimePage, focusedAnimeId: Int?, viewModel: AnimeVie
                 items(page.items, key = { it.id }) { anime ->
                     val cardModifier = Modifier
                         .onFocusChanged { if (it.isFocused) viewModel.rememberAnimeFocus(anime.id) }
-                        .let { if (anime.id == targetAnimeId) it.focusRequester(firstCardRequester) else it }
+                        .let { modifier ->
+                            if (anime.id == targetAnimeId) {
+                                modifier
+                                    .focusRequester(firstCardRequester)
+                                    .onGloballyPositioned {
+                                        if (!focusRestored) {
+                                            focusRestored = true
+                                            firstCardRequester.requestFocus()
+                                        }
+                                    }
+                            } else {
+                                modifier
+                            }
+                        }
                     AnimeCard(
                         anime = anime,
                         modifier = cardModifier,
@@ -180,7 +249,7 @@ private fun AnimeGrid(page: AnimePage, focusedAnimeId: Int?, viewModel: AnimeVie
 private fun AnimeCard(anime: Anime, modifier: Modifier, onClick: () -> Unit) {
     Card(
         onClick = onClick,
-        modifier = modifier.height(150.dp).fillMaxWidth(),
+        modifier = modifier.testTag("anime-card-${anime.id}").height(150.dp).fillMaxWidth(),
         shape = androidx.tv.material3.CardDefaults.shape(shape = RoundedCornerShape(12.dp)),
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -225,10 +294,13 @@ private fun EpisodeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
 @Composable
 private fun EpisodeGrid(state: AppUiState, sourceEpisodes: List<Episode>, viewModel: AnimeViewModel) {
     val episodes = if (state.episodeSort == EpisodeSort.NEWEST) sourceEpisodes else sourceEpisodes.asReversed()
+    val gridState = rememberLazyGridState()
     val firstCardRequester = remember { FocusRequester() }
     val targetEpisodeId = episodes.firstOrNull { it.id == state.focusedEpisodeId }?.id ?: episodes.firstOrNull()?.id
+    val targetEpisodeIndex = episodes.indexOfFirst { it.id == targetEpisodeId }
+    var focusRestored by remember(targetEpisodeId) { mutableStateOf(false) }
     LaunchedEffect(state.episodeSort, targetEpisodeId) {
-        if (targetEpisodeId != null) firstCardRequester.requestFocus()
+        if (targetEpisodeIndex >= 0) gridState.scrollToItem(targetEpisodeIndex)
     }
     Column(modifier = Modifier.fillMaxSize()) {
         if (episodes.isEmpty()) {
@@ -236,6 +308,7 @@ private fun EpisodeGrid(state: AppUiState, sourceEpisodes: List<Episode>, viewMo
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(5),
+                state = gridState,
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -244,8 +317,24 @@ private fun EpisodeGrid(state: AppUiState, sourceEpisodes: List<Episode>, viewMo
                 items(episodes, key = { it.id }) { episode ->
                     val cardModifier = Modifier
                         .onFocusChanged { if (it.isFocused) viewModel.rememberEpisodeFocus(episode.id) }
-                        .let { if (episode.id == targetEpisodeId) it.focusRequester(firstCardRequester) else it }
-                    Card(onClick = { viewModel.playEpisode(episode) }, modifier = cardModifier.height(105.dp).fillMaxWidth()) {
+                        .let { modifier ->
+                            if (episode.id == targetEpisodeId) {
+                                modifier
+                                    .focusRequester(firstCardRequester)
+                                    .onGloballyPositioned {
+                                        if (!focusRestored) {
+                                            focusRestored = true
+                                            firstCardRequester.requestFocus()
+                                        }
+                                    }
+                            } else {
+                                modifier
+                            }
+                        }
+                    Card(
+                        onClick = { viewModel.playEpisode(episode) },
+                        modifier = cardModifier.testTag("episode-card-${episode.id}").height(105.dp).fillMaxWidth(),
+                    ) {
                         Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Center) {
                             Text(episode.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
@@ -268,21 +357,41 @@ private fun EpisodeGrid(state: AppUiState, sourceEpisodes: List<Episode>, viewMo
 private fun PlayerScreen(state: AppUiState, viewModel: AnimeViewModel) {
     when (val playback = state.playback) {
         LoadState.Loading, LoadState.Idle -> StatusMessage("正在准备播放…")
-        is LoadState.Error -> RetryMessage(playback.message, viewModel::retryPlayback)
-        is LoadState.Content -> VideoPlayer(playback.value)
+        is LoadState.Error -> RetryMessage(playback.message, viewModel::retryPlayback, "返回", viewModel::back)
+        is LoadState.Content -> {
+            val episodeId = state.selectedEpisode?.id
+            if (episodeId == null) {
+                RetryMessage("没有找到当前剧集", viewModel::retryPlayback, "返回", viewModel::back)
+            } else {
+                VideoPlayer(playback.value, episodeId, viewModel::playbackError)
+            }
+        }
     }
 }
 
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 @Composable
-private fun VideoPlayer(source: PlayableSource) {
+private fun VideoPlayer(
+    source: PlayableSource,
+    episodeId: String,
+    onError: (String, String) -> Unit,
+) {
     val context = LocalContext.current
     val player = remember(source.headers) {
         val dataSourceFactory = DefaultHttpDataSource.Factory().setDefaultRequestProperties(source.headers)
         ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory)).build()
     }
-    DisposableEffect(player) {
-        onDispose { player.release() }
+    DisposableEffect(player, episodeId) {
+        val listener = object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) {
+                onError(episodeId, error.message ?: "视频播放失败")
+            }
+        }
+        player.addListener(listener)
+        onDispose {
+            player.removeListener(listener)
+            player.release()
+        }
     }
     LaunchedEffect(source.url) {
         player.setMediaItem(MediaItem.fromUri(source.url))
@@ -290,7 +399,7 @@ private fun VideoPlayer(source: PlayableSource) {
         player.playWhenReady = true
     }
     AndroidView(
-        factory = { PlayerView(it).apply { this.player = player; useController = true } },
+        factory = { AnimePlayerView(it).apply { this.player = player; useController = true } },
         modifier = Modifier.fillMaxSize(),
         update = { it.player = player },
     )
@@ -302,7 +411,7 @@ private fun PageSentinel(label: String, onPage: () -> Unit) {
     var triggered by remember { mutableStateOf(false) }
     Button(
         onClick = onPage,
-        modifier = Modifier.onFocusChanged {
+        modifier = Modifier.testTag("page-sentinel-$label").onFocusChanged {
             if (it.isFocused && !triggered) {
                 triggered = true
                 onPage()
@@ -321,9 +430,19 @@ private fun StatusMessage(message: String) {
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun RetryMessage(message: String, retry: () -> Unit) {
+private fun RetryMessage(
+    message: String,
+    retry: () -> Unit,
+    secondaryLabel: String? = null,
+    secondary: (() -> Unit)? = null,
+) {
     Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Text(message)
-        Button(onClick = retry) { Text("重试") }
+        Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            Button(onClick = retry) { Text("重试") }
+            if (secondaryLabel != null && secondary != null) {
+                Button(onClick = secondary) { Text(secondaryLabel) }
+            }
+        }
     }
 }
