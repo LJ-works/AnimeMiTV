@@ -70,13 +70,9 @@ jobs:
           test -f "$metadata"
           test -n "$apksigner"
           "$apksigner" verify --verbose "$apk"
-          actual_version=$(
-            grep -o '"versionName": "[^"]*"' "$metadata" |
-              cut -d '"' -f 4
-          )
-          echo "Release tag: $RELEASE_TAG"
-          echo "APK version: $actual_version"
-          test "$actual_version" = "$version"
+          expected_version="\"versionName\": \"$version\""
+          grep -Fq "$expected_version" "$metadata"
+          echo "Release tag and APK version: $version"
           output="AnimeMiTV-$version.apk"
           cp "$apk" "$output"
           sha256sum "$output" > "$output.sha256"
