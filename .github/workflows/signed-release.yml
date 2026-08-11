@@ -60,7 +60,7 @@ jobs:
 
       - name: Verify and package release APK
         run: |
-          set -eu
+          set -euo pipefail
           version="${RELEASE_TAG#v}"
           apk="app/build/outputs/apk/release/app-release.apk"
           test -f "$apk"
@@ -73,8 +73,11 @@ jobs:
           "$apksigner" verify --verbose "$apk"
           actual_version=$(
             "$aapt2" dump badging "$apk" |
-              sed -n "s/.*versionName='\\([^']*\\)'.*/\\1/p"
+              grep -o "versionName='[^']*'" |
+              cut -d "'" -f 2
           )
+          echo "Release tag: $RELEASE_TAG"
+          echo "APK version: $actual_version"
           test "$actual_version" = "$version"
           output="AnimeMiTV-$version.apk"
           cp "$apk" "$output"
