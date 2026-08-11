@@ -66,19 +66,11 @@ jobs:
           test -f "$apk"
           apksigner=$(find "$ANDROID_HOME/build-tools" \
             -name apksigner | sort -V | tail -1)
-          aapt=$(find "$ANDROID_HOME/build-tools" \
-            -name aapt | sort -V | tail -1)
+          metadata="app/build/outputs/apk/release/output-metadata.json"
+          test -f "$metadata"
           test -n "$apksigner"
-          test -n "$aapt"
           "$apksigner" verify --verbose "$apk"
-          badging_file="$RUNNER_TEMP/apk-badging.txt"
-          "$aapt" dump badging "$apk" > "$badging_file"
-          head -n 1 "$badging_file"
-          actual_version=$(
-            awk -F"versionName='" 'NF > 1 {print $2; exit}' \
-              "$badging_file" |
-              cut -d "'" -f 1
-          )
+          actual_version=$(jq -r '.elements[0].versionName' "$metadata")
           echo "Release tag: $RELEASE_TAG"
           echo "APK version: $actual_version"
           test "$actual_version" = "$version"
