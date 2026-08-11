@@ -71,10 +71,13 @@ jobs:
           test -n "$apksigner"
           test -n "$aapt"
           "$apksigner" verify --verbose "$apk"
+          badging_file="$RUNNER_TEMP/apk-badging.txt"
+          "$aapt" dump badging "$apk" > "$badging_file"
+          head -n 1 "$badging_file"
           actual_version=$(
-            "$aapt" dump badging "$apk" |
-              grep -o "versionName='[^']*'" |
-              cut -d "'" -f 2
+            awk -F"versionName='" 'NF > 1 {print $2; exit}' \
+              "$badging_file" |
+              cut -d "'" -f 1
           )
           echo "Release tag: $RELEASE_TAG"
           echo "APK version: $actual_version"
