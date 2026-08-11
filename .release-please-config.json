@@ -3,7 +3,8 @@
     ".": {
       "release-type": "simple",
       "package-name": "AnimeMiTV",
-      "version-file": "version.txt"
+      "version-file": "version.txt",
+      "include-component-in-tag": false
     }
   },
   "include-v-in-tag": true
