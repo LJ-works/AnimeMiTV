@@ -1,0 +1,10 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "package-name": "AnimeMiTV",
+      "version-file": "version.txt"
+    }
+  },
+  "include-v-in-tag": true
+}
