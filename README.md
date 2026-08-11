@@ -85,7 +85,18 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 
 提交和 Pull Request 标题使用 Conventional Commits：`feat:` 提升 minor，`fix:` 和 `perf:` 提升 patch，带 `!` 或 `BREAKING CHANGE:` 提升 major。合并到 `main` 后，Release Please 会创建或更新 Release PR；合并 Release PR 才会创建带 `vX.Y.Z` tag 的 GitHub Release。
 
-Release Please 需要仓库 Secret `RELEASE_PLEASE_TOKEN`，该 token 应为仅限本仓库的 fine-grained PAT。签名 APK 和 SHA-256 附件由后续发布 workflow 提供。
+Release Please 需要仓库 Secret `RELEASE_PLEASE_TOKEN`，该 token 应为仅限本仓库的 fine-grained PAT。
+
+正式 Release 发布后，签名 workflow 会使用以下 Repository secrets 构建并上传 APK 与 SHA-256：
+
+```text
+ANDROID_KEYSTORE_BASE64
+ANDROID_KEYSTORE_PASSWORD
+ANDROID_KEY_ALIAS
+ANDROID_KEY_PASSWORD
+```
+
+`ANDROID_KEYSTORE_BASE64` 是长期 keystore 的 Base64 内容；keystore 密码、别名和 key 密码只配置在 GitHub Secrets，不写入仓库。可在 Actions 中手动输入 tag 重新上传已有 Release 的附件。
 
 ## 数据来源
 
