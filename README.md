@@ -53,7 +53,7 @@ AnimeMiTV 是一个面向 Google TV / Android TV 的第三方 Anime1 客户端�
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-应用版本统一记录在根目录 `version.properties`。修改版本后可运行以下命令校验 SemVer 和 Android `versionCode`：
+应用版本统一记录在根目录 `version.txt`。修改版本后可运行以下命令校验 SemVer 和 Android `versionCode`：
 
 ```bash
 ./gradlew checkVersion
@@ -80,6 +80,12 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 # Android Lint
 ./gradlew :app:lintDebug
 ```
+
+## 自动发布
+
+提交和 Pull Request 标题使用 Conventional Commits：`feat:` 提升 minor，`fix:` 和 `perf:` 提升 patch，带 `!` 或 `BREAKING CHANGE:` 提升 major。合并到 `main` 后，Release Please 会创建或更新 Release PR；合并 Release PR 才会创建带 `vX.Y.Z` tag 的 GitHub Release。
+
+Release Please 需要仓库 Secret `RELEASE_PLEASE_TOKEN`，该 token 应为仅限本仓库的 fine-grained PAT。签名 APK 和 SHA-256 附件由后续发布 workflow 提供。
 
 ## 数据来源
 

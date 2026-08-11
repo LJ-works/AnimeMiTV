@@ -1,4 +1,3 @@
-import java.util.Properties
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.TaskAction
 
@@ -46,13 +45,8 @@ abstract class CheckVersionTask : DefaultTask() {
     }
 }
 
-val versionProperties = Properties().apply {
-    rootProject.file("version.properties").inputStream().use(::load)
-}
-val appVersion = AppVersionParser.parse(
-    versionProperties.getProperty("versionName")
-        ?: error("version.properties must define versionName"),
-)
+val versionFile = rootProject.file("version.txt")
+val appVersion = AppVersionParser.parse(versionFile.readText().trim())
 rootProject.extra["appVersionName"] = appVersion.name
 rootProject.extra["appVersionCode"] = appVersion.code
 
