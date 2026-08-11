@@ -5,6 +5,20 @@ plugins {
 
 val appVersionName = rootProject.extra["appVersionName"] as String
 val appVersionCode = rootProject.extra["appVersionCode"] as Int
+val releaseBuildRequested = gradle.startParameter.taskNames.any {
+    it.substringAfterLast(':').contains("Release", ignoreCase = true)
+}
+val releaseSigningValues = mapOf(
+    "ANDROID_KEYSTORE_PATH" to System.getenv("ANDROID_KEYSTORE_PATH"),
+    "ANDROID_KEYSTORE_PASSWORD" to System.getenv("ANDROID_KEYSTORE_PASSWORD"),
+    "ANDROID_KEY_ALIAS" to System.getenv("ANDROID_KEY_ALIAS"),
+    "ANDROID_KEY_PASSWORD" to System.getenv("ANDROID_KEY_PASSWORD"),
+)
+if (releaseBuildRequested) {
+    releaseSigningValues.forEach { (name, value) ->
+        require(!value.isNullOrBlank()) { "$name is required for release builds" }
+    }
+}
 
 android {
     namespace = "com.ljworks.animemitv"
@@ -21,8 +35,18 @@ android {
 
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = releaseSigningValues["ANDROID_KEYSTORE_PATH"]?.let(::file)
+            storePassword = releaseSigningValues["ANDROID_KEYSTORE_PASSWORD"]
+            keyAlias = releaseSigningValues["ANDROID_KEY_ALIAS"]
+            keyPassword = releaseSigningValues["ANDROID_KEY_PASSWORD"]
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             optimization {
                 enable = false
             }
