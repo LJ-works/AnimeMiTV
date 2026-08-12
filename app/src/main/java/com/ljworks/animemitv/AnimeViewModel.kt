@@ -37,9 +37,6 @@ data class AppUiState(
     val focusedAnimeId: Int? = null,
     val selectedAnime: Anime? = null,
     val episodes: LoadState<List<Episode>> = LoadState.Idle,
-    val nextEpisodePageUrl: String? = null,
-    val loadingMoreEpisodes: Boolean = false,
-    val episodeLoadError: String? = null,
     val episodeSort: EpisodeSort = EpisodeSort.NEWEST,
     val focusedEpisodeId: String? = null,
     val selectedEpisode: Episode? = null,
@@ -55,7 +52,6 @@ class AnimeViewModel(
 
     private var animeJob: Job? = null
     private var episodeJob: Job? = null
-    private var loadMoreJob: Job? = null
     private var playbackJob: Job? = null
 
     fun loadAnime() {
@@ -85,16 +81,12 @@ class AnimeViewModel(
 
     fun openAnime(anime: Anime) {
         episodeJob?.cancel()
-        loadMoreJob?.cancel()
         playbackJob?.cancel()
         _uiState.update {
             it.copy(
                 screen = AppScreen.EpisodeList,
                 selectedAnime = anime,
                 episodes = LoadState.Loading,
-                nextEpisodePageUrl = null,
-                loadingMoreEpisodes = false,
-                episodeLoadError = null,
                 episodeSort = EpisodeSort.NEWEST,
                 focusedEpisodeId = null,
                 selectedEpisode = null,
@@ -103,14 +95,9 @@ class AnimeViewModel(
         }
         episodeJob = scope.launch {
             try {
-                val page = dataSource.fetchEpisodes(anime)
+                val episodes = loadAllEpisodes(anime)
                 if (!isCurrentAnime(anime.id)) return@launch
-                _uiState.update {
-                    it.copy(
-                        episodes = LoadState.Content(page.episodes),
-                        nextEpisodePageUrl = page.nextPageUrl,
-                    )
-                }
+                _uiState.update { it.copy(episodes = LoadState.Content(episodes)) }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
@@ -128,42 +115,9 @@ class AnimeViewModel(
     fun toggleEpisodeSort() {
         _uiState.update {
             it.copy(
-                episodeSort = if (it.episodeSort == EpisodeSort.NEWEST) EpisodeSort.OLDEST else EpisodeSort.NEWEST
+                episodeSort = if (it.episodeSort == EpisodeSort.NEWEST) EpisodeSort.OLDEST else EpisodeSort.NEWEST,
+                focusedEpisodeId = null,
             )
-        }
-    }
-
-    fun loadMoreEpisodes() {
-        val state = _uiState.value
-        val anime = state.selectedAnime ?: return
-        val pageUrl = state.nextEpisodePageUrl ?: return
-        val existing = (state.episodes as? LoadState.Content)?.value ?: return
-        if (state.loadingMoreEpisodes) return
-        loadMoreJob?.cancel()
-        _uiState.update { it.copy(loadingMoreEpisodes = true, episodeLoadError = null) }
-        loadMoreJob = scope.launch {
-            try {
-                val page = dataSource.fetchEpisodes(anime, pageUrl)
-                if (!isCurrentEpisodePage(anime.id, pageUrl)) return@launch
-                _uiState.update {
-                    it.copy(
-                        episodes = LoadState.Content((existing + page.episodes).distinctBy(Episode::id)),
-                        nextEpisodePageUrl = page.nextPageUrl,
-                        loadingMoreEpisodes = false,
-                    )
-                }
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Throwable) {
-                if (isCurrentEpisodePage(anime.id, pageUrl)) {
-                    _uiState.update {
-                        it.copy(
-                            loadingMoreEpisodes = false,
-                            episodeLoadError = error.message ?: "更多剧集加载失败",
-                        )
-                    }
-                }
-            }
         }
     }
 
@@ -238,7 +192,6 @@ class AnimeViewModel(
             }
             AppScreen.EpisodeList -> {
                 episodeJob?.cancel()
-                loadMoreJob?.cancel()
                 playbackJob?.cancel()
                 _uiState.update { it.copy(screen = AppScreen.AnimeList) }
             }
@@ -246,11 +199,21 @@ class AnimeViewModel(
         }
     }
 
+    private suspend fun loadAllEpisodes(anime: Anime): List<Episode> {
+        val visitedPages = mutableSetOf<String>()
+        val episodes = buildList {
+            var pageUrl: String? = anime.categoryUrl
+            while (pageUrl != null && visitedPages.add(pageUrl)) {
+                val page = dataSource.fetchEpisodes(anime, pageUrl)
+                addAll(page.episodes)
+                pageUrl = page.nextPageUrl
+            }
+        }
+        return episodes.distinctBy(Episode::id)
+    }
+
     private fun isCurrentAnime(animeId: Int): Boolean =
         _uiState.value.screen == AppScreen.EpisodeList && _uiState.value.selectedAnime?.id == animeId
-
-    private fun isCurrentEpisodePage(animeId: Int, pageUrl: String): Boolean =
-        isCurrentAnime(animeId) && _uiState.value.nextEpisodePageUrl == pageUrl
 
     private fun isCurrentEpisode(animeId: Int?, episodeId: String): Boolean =
         _uiState.value.screen == AppScreen.Player &&
@@ -260,7 +223,6 @@ class AnimeViewModel(
     override fun onCleared() {
         animeJob?.cancel()
         episodeJob?.cancel()
-        loadMoreJob?.cancel()
         playbackJob?.cancel()
         scope.cancel()
         super.onCleared()

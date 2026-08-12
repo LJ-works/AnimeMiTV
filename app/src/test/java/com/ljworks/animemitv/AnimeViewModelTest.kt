@@ -24,30 +24,54 @@ class AnimeViewModelTest {
     }
 
     @Test
-    fun openingAnimeLoadsEpisodesAndSortIsOnlyCurrentPageState() {
-        val viewModel = AnimeViewModel(FakeDataSource(), CoroutineScope(Dispatchers.Unconfined))
+    fun openingAnimeLoadsAllEpisodePagesBeforeShowingContent() {
+        val secondEpisode = episode.copy(id = "2", title = "相反的你和我 第二季 [02]")
+        val dataSource = FakeDataSource(
+            pages = mapOf(
+                anime.categoryUrl to EpisodePage(listOf(episode), "page-2"),
+                "page-2" to EpisodePage(listOf(secondEpisode), null),
+            ),
+        )
+        val viewModel = AnimeViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.openAnime(anime)
+        viewModel.rememberEpisodeFocus(episode.id)
         viewModel.toggleEpisodeSort()
 
         val state = viewModel.uiState.value
         assertEquals(AppScreen.EpisodeList, state.screen)
         assertEquals(EpisodeSort.OLDEST, state.episodeSort)
-        assertEquals(LoadState.Content(listOf(episode)), state.episodes)
+        assertEquals(null, state.focusedEpisodeId)
+        assertEquals(LoadState.Content(listOf(episode, secondEpisode)), state.episodes)
+        assertEquals(2, dataSource.fetchEpisodeCalls)
     }
 
     @Test
-    fun loadingMoreFailureKeepsExistingEpisodes() {
+    fun repeatedEpisodePageStopsLoadingWithoutDuplicatingEpisodes() {
+        val secondEpisode = episode.copy(id = "2", title = "相反的你和我 第二季 [02]")
+        val dataSource = FakeDataSource(
+            pages = mapOf(
+                anime.categoryUrl to EpisodePage(listOf(episode), "page-2"),
+                "page-2" to EpisodePage(listOf(secondEpisode), "page-2"),
+            ),
+        )
+        val viewModel = AnimeViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
+
+        viewModel.openAnime(anime)
+
+        assertEquals(LoadState.Content(listOf(episode, secondEpisode)), viewModel.uiState.value.episodes)
+        assertEquals(2, dataSource.fetchEpisodeCalls)
+    }
+
+    @Test
+    fun episodePageFailureDoesNotExposePartialEpisodes() {
         val dataSource = FakeDataSource(nextPageUrl = "page-2", failMorePage = true)
         val viewModel = AnimeViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.openAnime(anime)
-        viewModel.loadMoreEpisodes()
 
-        val state = viewModel.uiState.value
-        assertEquals(LoadState.Content(listOf(episode)), state.episodes)
-        assertEquals("更多剧集加载失败", state.episodeLoadError)
-        assertTrue(!state.loadingMoreEpisodes)
+        assertEquals(LoadState.Error("更多剧集加载失败"), viewModel.uiState.value.episodes)
+        assertEquals(2, dataSource.fetchEpisodeCalls)
     }
 
     @Test
@@ -120,6 +144,7 @@ class AnimeViewModelTest {
         ),
         private val nextPageUrl: String? = null,
         private val failMorePage: Boolean = false,
+        private val pages: Map<String, EpisodePage> = emptyMap(),
     ) : Anime1DataSource {
         var fetchEpisodeCalls = 0
         val resolvedEpisodes = mutableListOf<Episode>()
@@ -129,7 +154,7 @@ class AnimeViewModelTest {
         override suspend fun fetchEpisodes(anime: Anime, pageUrl: String): EpisodePage {
             fetchEpisodeCalls++
             if (failMorePage && pageUrl == nextPageUrl) error("更多剧集加载失败")
-            return EpisodePage(listOfNotNull(episode), nextPageUrl)
+            return pages[pageUrl] ?: EpisodePage(listOfNotNull(episode), nextPageUrl)
         }
 
         override suspend fun resolvePlayback(anime: Anime, episode: Episode): PlayableSource {

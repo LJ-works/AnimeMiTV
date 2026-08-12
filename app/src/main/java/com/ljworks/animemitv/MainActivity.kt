@@ -309,12 +309,14 @@ private fun EpisodeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("剧集")
-                Button(onClick = viewModel::toggleEpisodeSort) {
-                    Text(if (state.episodeSort == EpisodeSort.NEWEST) "最新集优先" else "第一集优先")
+                if (state.episodes is LoadState.Content) {
+                    Button(onClick = viewModel::toggleEpisodeSort) {
+                        Text(if (state.episodeSort == EpisodeSort.NEWEST) "最新集优先" else "第一集优先")
+                    }
                 }
             }
             when (val episodes = state.episodes) {
-                LoadState.Loading -> StatusMessage("正在加载剧集…")
+                LoadState.Loading -> StatusMessage("正在加载全部剧集…")
                 is LoadState.Error -> RetryMessage(episodes.message, viewModel::retryEpisodes)
                 is LoadState.Content -> EpisodeGrid(state, episodes.value, viewModel)
                 LoadState.Idle -> Unit
@@ -332,7 +334,7 @@ private fun EpisodeGrid(state: AppUiState, sourceEpisodes: List<Episode>, viewMo
     val targetEpisodeId = episodes.firstOrNull { it.id == state.focusedEpisodeId }?.id ?: episodes.firstOrNull()?.id
     val targetEpisodeIndex = episodes.indexOfFirst { it.id == targetEpisodeId }
     var focusRestored by remember(targetEpisodeId) { mutableStateOf(false) }
-    LaunchedEffect(state.episodeSort, targetEpisodeId) {
+    LaunchedEffect(Unit) {
         if (targetEpisodeIndex >= 0) gridState.scrollToItem(targetEpisodeIndex)
     }
     Column(modifier = Modifier.fillMaxSize()) {
@@ -343,7 +345,7 @@ private fun EpisodeGrid(state: AppUiState, sourceEpisodes: List<Episode>, viewMo
                 columns = GridCells.Fixed(5),
                 state = gridState,
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(4.dp),
+                contentPadding = PaddingValues(start = 4.dp, end = 4.dp, top = 20.dp, bottom = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -366,26 +368,32 @@ private fun EpisodeGrid(state: AppUiState, sourceEpisodes: List<Episode>, viewMo
                         }
                     Card(
                         onClick = { viewModel.playEpisode(episode) },
-                        modifier = cardModifier.testTag("episode-card-${episode.id}").height(105.dp).fillMaxWidth(),
+                        modifier = cardModifier.testTag("episode-card-${episode.id}").height(100.dp).fillMaxWidth(),
+                        border = androidx.tv.material3.CardDefaults.border(
+                            focusedBorder = Border(
+                                border = BorderStroke(3.dp, Color(0xFF8FE3E0)),
+                                shape = RoundedCornerShape(12.dp),
+                            ),
+                        ),
+                        colors = androidx.tv.material3.CardDefaults.colors(
+                            focusedContainerColor = Color(0xFF29466F),
+                        ),
+                        scale = androidx.tv.material3.CardDefaults.scale(focusedScale = 1.05f),
+                        shape = androidx.tv.material3.CardDefaults.shape(shape = RoundedCornerShape(12.dp)),
                     ) {
-                        Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Center) {
-                            Text(episode.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(14.dp),
+                            verticalArrangement = Arrangement.Top,
+                        ) {
+                            Text(
+                                episode.title,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 18.sp),
+                                maxLines = 4,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                     }
                 }
-            }
-        }
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("episode-bottom-bar"),
-        ) {
-            if (state.episodeLoadError != null) {
-                RetryMessage(state.episodeLoadError, viewModel::loadMoreEpisodes)
-            } else if (state.loadingMoreEpisodes) {
-                StatusMessage("正在加载更早剧集…")
-            } else if (state.nextEpisodePageUrl != null) {
-                PageSentinel("加载更早剧集") { viewModel.loadMoreEpisodes() }
             }
         }
     }
@@ -442,23 +450,6 @@ private fun VideoPlayer(
         modifier = Modifier.fillMaxSize(),
         update = { it.player = player },
     )
-}
-
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-private fun PageSentinel(label: String, onPage: () -> Unit) {
-    var triggered by remember { mutableStateOf(false) }
-    Button(
-        onClick = onPage,
-        modifier = Modifier.testTag("page-sentinel-$label").onFocusChanged {
-            if (it.isFocused && !triggered) {
-                triggered = true
-                onPage()
-            } else if (!it.isFocused) {
-                triggered = false
-            }
-        },
-    ) { Text(label) }
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)
