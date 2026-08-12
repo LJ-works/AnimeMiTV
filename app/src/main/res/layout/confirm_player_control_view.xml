@@ -44,6 +44,9 @@
         android:layout_gravity="center"
         android:padding="@dimen/exo_styled_controls_padding">
 
-        <ImageButton android:id="@id/exo_play_pause" style="@style/ExoStyledControls.Button.Center.PlayPause" />
+        <ImageButton
+            android:id="@id/exo_play_pause"
+            style="@style/ExoStyledControls.Button.Center.PlayPause"
+            android:background="@drawable/player_control_focus_background" />
     </FrameLayout>
 </merge>
