@@ -334,7 +334,7 @@ private fun EpisodeGrid(state: AppUiState, sourceEpisodes: List<Episode>, viewMo
     val targetEpisodeId = episodes.firstOrNull { it.id == state.focusedEpisodeId }?.id ?: episodes.firstOrNull()?.id
     val targetEpisodeIndex = episodes.indexOfFirst { it.id == targetEpisodeId }
     var focusRestored by remember(targetEpisodeId) { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(state.episodeSort) {
         if (targetEpisodeIndex >= 0) gridState.scrollToItem(targetEpisodeIndex)
     }
     Column(modifier = Modifier.fillMaxSize()) {
