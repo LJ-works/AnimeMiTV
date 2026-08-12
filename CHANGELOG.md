@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/LJ-works/AnimeMiTV/compare/v1.2.0...v1.3.0) (2026-08-12)
+
+
+### Features
+
+* confirm seeking before playback jump ([#25](https://github.com/LJ-works/AnimeMiTV/issues/25)) ([df1f335](https://github.com/LJ-works/AnimeMiTV/commit/df1f33517f5133b74744d7c7e16c7d34f5175bdd))
+
 ## [1.2.0](https://github.com/LJ-works/AnimeMiTV/compare/v1.1.0...v1.2.0) (2026-08-12)
 
 
