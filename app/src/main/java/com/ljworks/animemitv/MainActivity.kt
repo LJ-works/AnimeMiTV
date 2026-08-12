@@ -7,7 +7,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -35,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -60,6 +63,8 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.ljworks.animemitv.ui.theme.AnimeMiTVTheme
+import com.ljworks.animemitv.ui.theme.BackgroundEnd
+import com.ljworks.animemitv.ui.theme.BackgroundStart
 
 internal fun seekPosition(currentPosition: Long, duration: Long, offset: Long): Long {
     val target = (currentPosition + offset).coerceAtLeast(0L)
@@ -135,10 +140,17 @@ fun AnimeMiTVApp(viewModel: AnimeViewModel) {
     }
 
     Surface(modifier = Modifier.fillMaxSize()) {
-        when (state.screen) {
-            AppScreen.AnimeList -> AnimeListScreen(state, viewModel)
-            AppScreen.EpisodeList -> EpisodeListScreen(state, viewModel)
-            AppScreen.Player -> PlayerScreen(state, viewModel)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Brush.linearGradient(listOf(BackgroundStart, BackgroundEnd)))
+                .testTag("screen-background"),
+        ) {
+            when (state.screen) {
+                AppScreen.AnimeList -> AnimeListScreen(state, viewModel)
+                AppScreen.EpisodeList -> EpisodeListScreen(state, viewModel)
+                AppScreen.Player -> PlayerScreen(state, viewModel)
+            }
         }
     }
 }
@@ -149,12 +161,25 @@ private fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
     LaunchedEffect(Unit) {
         if (state.anime is LoadState.Loading || state.anime is LoadState.Idle) viewModel.loadAnime()
     }
-    Row(modifier = Modifier.fillMaxSize().padding(28.dp)) {
-        SideBar()
-        Spacer(Modifier.width(30.dp))
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
+    ) {
+        Column(modifier = Modifier.padding(top = 20.dp)) {
+            SideBar()
+        }
+        Spacer(Modifier.width(20.dp))
         Column(modifier = Modifier.fillMaxSize()) {
-            Text("动画", style = MaterialTheme.typography.headlineLarge)
-            Spacer(Modifier.height(18.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .testTag("anime-top-bar"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("动画", modifier = Modifier.testTag("anime-title"), style = MaterialTheme.typography.bodyLarge)
+            }
             when (val anime = state.anime) {
                 LoadState.Loading -> StatusMessage("正在加载动画列表…")
                 is LoadState.Error -> RetryMessage(anime.message, viewModel::retryAnime)
@@ -172,12 +197,14 @@ private fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
 @Composable
 private fun SideBar() {
     Column(
-        modifier = Modifier.width(170.dp).fillMaxHeight(),
+        modifier = Modifier.width(90.dp).fillMaxHeight().testTag("sidebar"),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("AnimeMiTV", style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(28.dp))
-        Button(onClick = {}, modifier = Modifier.testTag("sidebar-animation")) { Text("动画") }
+        Text("AnimeMiTV", style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+        Spacer(Modifier.height(12.dp))
+        Button(onClick = {}, modifier = Modifier.testTag("sidebar-animation")) {
+            Text("动画", style = MaterialTheme.typography.bodyMedium)
+        }
     }
 }
 
@@ -195,7 +222,7 @@ private fun AnimeGrid(page: AnimePage, focusedAnimeId: Int?, viewModel: AnimeVie
     Column(modifier = Modifier.fillMaxSize()) {
         if (page.hasPrevious) {
             PageSentinel("上一页") { viewModel.previousAnimePage() }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
         }
         if (page.items.isEmpty()) {
             StatusMessage("没有可显示的动画")
@@ -234,7 +261,10 @@ private fun AnimeGrid(page: AnimePage, focusedAnimeId: Int?, viewModel: AnimeVie
             }
         }
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+                .testTag("anime-bottom-bar"),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -265,13 +295,19 @@ private fun AnimeCard(anime: Anime, modifier: Modifier, onClick: () -> Unit) {
 @Composable
 private fun EpisodeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
     val anime = state.selectedAnime ?: return
-    Row(modifier = Modifier.fillMaxSize().padding(28.dp)) {
+    Row(modifier = Modifier.fillMaxSize().padding(20.dp)) {
         SideBar()
-        Spacer(Modifier.width(30.dp))
+        Spacer(Modifier.width(20.dp))
         Column(modifier = Modifier.fillMaxSize()) {
-            Text(anime.title, style = MaterialTheme.typography.headlineLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                anime.title,
+                modifier = Modifier.testTag("episode-title"),
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -342,12 +378,18 @@ private fun EpisodeGrid(state: AppUiState, sourceEpisodes: List<Episode>, viewMo
                 }
             }
         }
-        if (state.episodeLoadError != null) {
-            RetryMessage(state.episodeLoadError, viewModel::loadMoreEpisodes)
-        } else if (state.loadingMoreEpisodes) {
-            StatusMessage("正在加载更早剧集…")
-        } else if (state.nextEpisodePageUrl != null) {
-            PageSentinel("加载更早剧集") { viewModel.loadMoreEpisodes() }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("episode-bottom-bar"),
+        ) {
+            if (state.episodeLoadError != null) {
+                RetryMessage(state.episodeLoadError, viewModel::loadMoreEpisodes)
+            } else if (state.loadingMoreEpisodes) {
+                StatusMessage("正在加载更早剧集…")
+            } else if (state.nextEpisodePageUrl != null) {
+                PageSentinel("加载更早剧集") { viewModel.loadMoreEpisodes() }
+            }
         }
     }
 }
@@ -425,7 +467,7 @@ private fun PageSentinel(label: String, onPage: () -> Unit) {
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun StatusMessage(message: String) {
-    Text(message, modifier = Modifier.padding(24.dp), style = MaterialTheme.typography.titleLarge)
+    Text(message, modifier = Modifier.padding(8.dp), style = MaterialTheme.typography.bodyLarge)
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)
@@ -436,9 +478,9 @@ private fun RetryMessage(
     secondaryLabel: String? = null,
     secondary: (() -> Unit)? = null,
 ) {
-    Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        Text(message)
-        Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+    Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(message, style = MaterialTheme.typography.bodyLarge)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = retry) { Text("重试") }
             if (secondaryLabel != null && secondary != null) {
                 Button(onClick = secondary) { Text(secondaryLabel) }
