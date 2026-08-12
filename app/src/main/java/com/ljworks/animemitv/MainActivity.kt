@@ -49,7 +49,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -57,6 +56,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.ui.DefaultTimeBar
 import androidx.media3.ui.PlayerView
 import androidx.tv.material3.Border
 import androidx.tv.material3.Button
@@ -70,48 +70,18 @@ import com.ljworks.animemitv.ui.theme.AnimeMiTVTheme
 import com.ljworks.animemitv.ui.theme.BackgroundEnd
 import com.ljworks.animemitv.ui.theme.BackgroundStart
 
-internal fun seekPosition(currentPosition: Long, duration: Long, offset: Long): Long {
-    val target = (currentPosition + offset).coerceAtLeast(0L)
-    return if (duration != C.TIME_UNSET && duration >= 0) target.coerceAtMost(duration) else target
-}
-
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 private class AnimePlayerView(context: Context) : PlayerView(context) {
-    init {
-        isFocusable = true
-        isFocusableInTouchMode = true
-    }
-
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action != KeyEvent.ACTION_DOWN || event.repeatCount > 0) {
-            return super.dispatchKeyEvent(event)
+        if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+            showController()
+            findViewById<DefaultTimeBar>(androidx.media3.ui.R.id.exo_progress).run {
+                requestFocus()
+                dispatchKeyEvent(event)
+            }
+            return true
         }
-        val activePlayer = player ?: return super.dispatchKeyEvent(event)
-        return when (event.keyCode) {
-            KeyEvent.KEYCODE_DPAD_CENTER,
-            KeyEvent.KEYCODE_ENTER,
-            KeyEvent.KEYCODE_NUMPAD_ENTER,
-            -> {
-                if (activePlayer.isPlaying) activePlayer.pause() else activePlayer.play()
-                showController()
-                true
-            }
-            KeyEvent.KEYCODE_DPAD_LEFT -> {
-                seekBy(activePlayer, -10_000L)
-                showController()
-                true
-            }
-            KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                seekBy(activePlayer, 10_000L)
-                showController()
-                true
-            }
-            else -> super.dispatchKeyEvent(event)
-        }
-    }
-
-    private fun seekBy(activePlayer: Player, offset: Long) {
-        activePlayer.seekTo(seekPosition(activePlayer.currentPosition, activePlayer.duration, offset))
+        return super.dispatchKeyEvent(event)
     }
 }
 
@@ -446,7 +416,18 @@ private fun VideoPlayer(
         player.playWhenReady = true
     }
     AndroidView(
-        factory = { AnimePlayerView(it).apply { this.player = player; useController = true } },
+        factory = {
+            AnimePlayerView(it).apply {
+                this.player = player
+                useController = true
+                setShowPreviousButton(false)
+                setShowNextButton(false)
+                setShowRewindButton(false)
+                setShowFastForwardButton(false)
+                findViewById<DefaultTimeBar>(androidx.media3.ui.R.id.exo_progress)
+                    .setKeyTimeIncrement(15_000L)
+            }
+        },
         modifier = Modifier.fillMaxSize(),
         update = { it.player = player },
     )
