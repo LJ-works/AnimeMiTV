@@ -53,8 +53,8 @@ app/src/
 - 创建 `AnimeViewModel` 和真实 `Anime1HttpDataSource`。
 - 根据 `AppScreen` 在动画列表、剧集列表和播放器间切换。
 - 实现左侧栏、文字卡片网格、错误重试与焦点恢复。
-- 使用 Media3 默认 `PlayerView` 控制器和 ExoPlayer 播放视频。
-- `PlayerView` 使用 Media3 默认遥控器控制，并监听 Media3 播放错误。
+- 使用 `PlayerView` 和 ExoPlayer 自动播放视频，仅显示播放/暂停和进度条。
+- 进度条使用固定 15 秒遥控器跳转，并监听 Media3 播放错误。
 
 ### `Anime.kt`
 
@@ -196,7 +196,7 @@ Idle → Loading → Content
 - 完整动画列表展示及焦点恢复。
 - 动画列表进入剧集页。
 - 播放错误页的“重试/返回”操作。
-- Media3 默认播放控制器和非可见卡片的滚动/焦点恢复。
+- 播放页面的播放/暂停、进度条跳转和非可见卡片的滚动/焦点恢复。
 
 ### 验证命令
 

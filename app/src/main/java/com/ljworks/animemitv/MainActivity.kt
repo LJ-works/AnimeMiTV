@@ -54,6 +54,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.ui.DefaultTimeBar
 import androidx.media3.ui.PlayerView
 import androidx.tv.material3.Border
 import androidx.tv.material3.Button
@@ -399,7 +400,18 @@ private fun VideoPlayer(
         player.playWhenReady = true
     }
     AndroidView(
-        factory = { PlayerView(it).apply { this.player = player; useController = true } },
+        factory = {
+            PlayerView(it).apply {
+                this.player = player
+                useController = true
+                setShowPreviousButton(false)
+                setShowNextButton(false)
+                setShowRewindButton(false)
+                setShowFastForwardButton(false)
+                findViewById<DefaultTimeBar>(androidx.media3.ui.R.id.exo_progress)
+                    .setKeyTimeIncrement(15_000L)
+            }
+        },
         modifier = Modifier.fillMaxSize(),
         update = { it.player = player },
     )
