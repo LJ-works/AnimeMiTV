@@ -14,6 +14,7 @@ val releaseSigningValues = mapOf(
     "ANDROID_KEY_ALIAS" to System.getenv("ANDROID_KEY_ALIAS"),
     "ANDROID_KEY_PASSWORD" to System.getenv("ANDROID_KEY_PASSWORD"),
 )
+val hasReleaseSigning = releaseSigningValues.values.all { !it.isNullOrBlank() }
 if (releaseBuildRequested) {
     releaseSigningValues.forEach { (name, value) ->
         require(!value.isNullOrBlank()) { "$name is required for release builds" }
@@ -45,6 +46,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
+        }
         release {
             signingConfig = signingConfigs.getByName("release")
             optimization {
