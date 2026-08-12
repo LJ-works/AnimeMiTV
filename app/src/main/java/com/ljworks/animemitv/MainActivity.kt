@@ -38,11 +38,13 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -56,12 +58,14 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
+import androidx.tv.material3.Border
 import androidx.tv.material3.Button
 import androidx.tv.material3.Card
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
+import androidx.compose.foundation.BorderStroke
 import com.ljworks.animemitv.ui.theme.AnimeMiTVTheme
 import com.ljworks.animemitv.ui.theme.BackgroundEnd
 import com.ljworks.animemitv.ui.theme.BackgroundStart
@@ -213,18 +217,18 @@ private fun AnimeGrid(items: List<Anime>, focusedAnimeId: Int?, viewModel: Anime
     val targetAnimeId = items.firstOrNull { it.id == focusedAnimeId }?.id ?: items.firstOrNull()?.id
     val targetAnimeIndex = items.indexOfFirst { it.id == targetAnimeId }
     var focusRestored by remember(targetAnimeId) { mutableStateOf(false) }
-    LaunchedEffect(targetAnimeId) {
+    LaunchedEffect(Unit) {
         if (targetAnimeIndex >= 0) gridState.scrollToItem(targetAnimeIndex)
     }
     if (items.isEmpty()) {
         StatusMessage("没有可显示的动画")
     } else {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
+            columns = GridCells.Fixed(5),
             state = gridState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(18.dp),
+            contentPadding = PaddingValues(start = 4.dp, end = 4.dp, top = 20.dp, bottom = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             items(items, key = { it.id }) { anime ->
@@ -260,13 +264,26 @@ private fun AnimeCard(anime: Anime, modifier: Modifier, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = modifier.testTag("anime-card-${anime.id}").height(150.dp).fillMaxWidth(),
+        border = androidx.tv.material3.CardDefaults.border(
+            focusedBorder = Border(
+                border = BorderStroke(3.dp, Color(0xFF8FE3E0)),
+                shape = RoundedCornerShape(12.dp),
+            ),
+        ),
+        colors = androidx.tv.material3.CardDefaults.colors(
+            focusedContainerColor = Color(0xFF29466F),
+        ),
+        scale = androidx.tv.material3.CardDefaults.scale(focusedScale = 1.05f),
         shape = androidx.tv.material3.CardDefaults.shape(shape = RoundedCornerShape(12.dp)),
     ) {
-        Column(modifier = Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(anime.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(anime.episodeStatus, style = MaterialTheme.typography.bodyMedium)
-            Text("${anime.year} · ${anime.season}", style = MaterialTheme.typography.bodySmall)
-            if (anime.fansub.isNotBlank()) Text(anime.fansub, style = MaterialTheme.typography.bodySmall)
+        Column(modifier = Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                anime.title,
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 18.sp),
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(anime.episodeStatus, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
