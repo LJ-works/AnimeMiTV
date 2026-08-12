@@ -29,6 +29,11 @@ import androidx.media3.ui.PlayerView
 
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 class AnimePlayerView(context: Context, attrs: AttributeSet?) : PlayerView(context, attrs) {
+    init {
+        isFocusable = true
+        isFocusableInTouchMode = true
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
             showController()
@@ -104,6 +109,10 @@ private fun VideoPlayer(
                 timeBar.setKeyTimeIncrement(15_000L)
                 setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
                     controllerVisible = visibility == View.VISIBLE
+                    if (!controllerVisible) {
+                        findFocus()?.clearFocus()
+                        requestFocus()
+                    }
                 })
                 hideController = {
                     timeBar.cancelPreview()
