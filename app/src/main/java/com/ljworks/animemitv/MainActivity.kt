@@ -1,6 +1,8 @@
 package com.ljworks.animemitv
 
+import android.content.Context
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -68,6 +70,20 @@ import com.ljworks.animemitv.ui.theme.AnimeMiTVTheme
 import com.ljworks.animemitv.ui.theme.BackgroundEnd
 import com.ljworks.animemitv.ui.theme.BackgroundStart
 
+@androidx.annotation.OptIn(markerClass = [UnstableApi::class])
+private class AnimePlayerView(context: Context) : PlayerView(context) {
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+            showController()
+            findViewById<DefaultTimeBar>(androidx.media3.ui.R.id.exo_progress).run {
+                requestFocus()
+                dispatchKeyEvent(event)
+            }
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+}
 
 class MainActivity : ComponentActivity() {
     private val animeViewModel by viewModels<AnimeViewModel> {
@@ -401,7 +417,7 @@ private fun VideoPlayer(
     }
     AndroidView(
         factory = {
-            PlayerView(it).apply {
+            AnimePlayerView(it).apply {
                 this.player = player
                 useController = true
                 setShowPreviousButton(false)
