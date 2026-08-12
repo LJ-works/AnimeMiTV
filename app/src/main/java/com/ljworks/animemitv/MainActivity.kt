@@ -1,8 +1,6 @@
 package com.ljworks.animemitv
 
-import android.content.Context
 import android.os.Bundle
-import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -49,7 +47,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -70,50 +67,6 @@ import com.ljworks.animemitv.ui.theme.AnimeMiTVTheme
 import com.ljworks.animemitv.ui.theme.BackgroundEnd
 import com.ljworks.animemitv.ui.theme.BackgroundStart
 
-internal fun seekPosition(currentPosition: Long, duration: Long, offset: Long): Long {
-    val target = (currentPosition + offset).coerceAtLeast(0L)
-    return if (duration != C.TIME_UNSET && duration >= 0) target.coerceAtMost(duration) else target
-}
-
-@androidx.annotation.OptIn(markerClass = [UnstableApi::class])
-private class AnimePlayerView(context: Context) : PlayerView(context) {
-    init {
-        isFocusable = true
-        isFocusableInTouchMode = true
-    }
-
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action != KeyEvent.ACTION_DOWN || event.repeatCount > 0) {
-            return super.dispatchKeyEvent(event)
-        }
-        val activePlayer = player ?: return super.dispatchKeyEvent(event)
-        return when (event.keyCode) {
-            KeyEvent.KEYCODE_DPAD_CENTER,
-            KeyEvent.KEYCODE_ENTER,
-            KeyEvent.KEYCODE_NUMPAD_ENTER,
-            -> {
-                if (activePlayer.isPlaying) activePlayer.pause() else activePlayer.play()
-                showController()
-                true
-            }
-            KeyEvent.KEYCODE_DPAD_LEFT -> {
-                seekBy(activePlayer, -10_000L)
-                showController()
-                true
-            }
-            KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                seekBy(activePlayer, 10_000L)
-                showController()
-                true
-            }
-            else -> super.dispatchKeyEvent(event)
-        }
-    }
-
-    private fun seekBy(activePlayer: Player, offset: Long) {
-        activePlayer.seekTo(seekPosition(activePlayer.currentPosition, activePlayer.duration, offset))
-    }
-}
 
 class MainActivity : ComponentActivity() {
     private val animeViewModel by viewModels<AnimeViewModel> {
@@ -446,7 +399,7 @@ private fun VideoPlayer(
         player.playWhenReady = true
     }
     AndroidView(
-        factory = { AnimePlayerView(it).apply { this.player = player; useController = true } },
+        factory = { PlayerView(it).apply { this.player = player; useController = true } },
         modifier = Modifier.fillMaxSize(),
         update = { it.player = player },
     )
