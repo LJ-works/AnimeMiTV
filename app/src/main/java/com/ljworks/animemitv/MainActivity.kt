@@ -165,8 +165,15 @@ private fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
         SideBar()
         Spacer(Modifier.width(20.dp))
         Column(modifier = Modifier.fillMaxSize()) {
-            Text("动画", modifier = Modifier.testTag("anime-title"), style = MaterialTheme.typography.bodyLarge)
-            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(36.dp)
+                    .testTag("anime-top-bar"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("动画", modifier = Modifier.testTag("anime-title"), style = MaterialTheme.typography.bodyLarge)
+            }
             when (val anime = state.anime) {
                 LoadState.Loading -> StatusMessage("正在加载动画列表…")
                 is LoadState.Error -> RetryMessage(anime.message, viewModel::retryAnime)

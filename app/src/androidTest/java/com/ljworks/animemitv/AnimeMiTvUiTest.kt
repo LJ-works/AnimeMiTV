@@ -5,6 +5,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -47,6 +48,7 @@ class AnimeMiTvUiTest {
         composeRule.onNodeWithTag("sidebar").assertWidthIsEqualTo(90.dp)
         composeRule.onNodeWithText("AnimeMiTV").assertIsDisplayed()
         composeRule.onNodeWithTag("sidebar-animation").assertIsDisplayed()
+        composeRule.onNodeWithTag("anime-top-bar").assertHeightIsEqualTo(36.dp)
         composeRule.onNodeWithTag("anime-title").assertIsDisplayed()
         composeRule.onNodeWithTag("anime-bottom-bar").assertIsDisplayed()
         composeRule.onNodeWithText("测试动画").assertIsDisplayed()
