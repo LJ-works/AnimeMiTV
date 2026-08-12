@@ -17,6 +17,7 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
+import org.junit.Assert.assertEquals
 import com.ljworks.animemitv.ui.theme.AnimeMiTVTheme
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -50,8 +51,8 @@ class AnimeMiTvUiTest {
         composeRule.onNodeWithTag("sidebar-animation").assertIsDisplayed()
         composeRule.onNodeWithTag("anime-top-bar").assertHeightIsEqualTo(56.dp)
         composeRule.onNodeWithTag("anime-title").assertIsDisplayed()
-        composeRule.onNodeWithTag("anime-bottom-bar").assertIsDisplayed()
         composeRule.onNodeWithText("测试动画").assertIsDisplayed()
+        assertEquals(0, composeRule.onAllNodesWithTag("anime-bottom-bar").fetchSemanticsNodes().size)
     }
 
     @Test
@@ -69,17 +70,6 @@ class AnimeMiTvUiTest {
         composeRule.onNodeWithText("重试").assertIsDisplayed()
         composeRule.onNodeWithText("返回").performSemanticsAction(SemanticsActions.OnClick)
         composeRule.onNodeWithText("剧集").assertIsDisplayed()
-    }
-
-    @Test
-    fun nextPageShowsTheRemainingAnime() {
-        val viewModel = viewModel((1..21).map { Anime(it, "测试动画 $it", "1", "2026", "夏", "") })
-
-        composeRule.setContent { AnimeMiTVTheme { AnimeMiTVApp(viewModel) } }
-
-        composeRule.onNodeWithTag("page-sentinel-下一页").performSemanticsAction(SemanticsActions.OnClick)
-        waitForTag("anime-card-21")
-        composeRule.onNodeWithText("测试动画 21").assertIsDisplayed()
     }
 
     @Test

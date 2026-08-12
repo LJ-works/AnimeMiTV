@@ -52,7 +52,7 @@ app/src/
 
 - 创建 `AnimeViewModel` 和真实 `Anime1HttpDataSource`。
 - 根据 `AppScreen` 在动画列表、剧集列表和播放器间切换。
-- 实现左侧栏、文字卡片网格、翻页哨兵、错误重试与焦点恢复。
+- 实现左侧栏、文字卡片网格、错误重试与焦点恢复。
 - 使用 `PlayerView` 和 ExoPlayer 播放视频。
 - `AnimePlayerView` 直接处理 DPAD Center 播放/暂停及左右 10 秒跳转，并监听 Media3 播放错误。
 
@@ -64,7 +64,6 @@ app/src/
 - `Episode`：剧集、文章地址和播放签名。
 - `EpisodePage`：一页剧集与下一页地址。
 - `PlayableSource`：媒体地址及请求头。
-- `AnimePage`：动画本地分页结果。
 
 同时包含三个纯解析入口：
 
@@ -96,11 +95,11 @@ suspend fun resolvePlayback(anime: Anime, episode: Episode): PlayableSource
 
 - 当前页面 `AnimeList / EpisodeList / Player`。
 - 动画、剧集和播放的加载状态。
-- 当前动画页、已加载剧集及下一页 URL。
+- 完整动画列表、已加载剧集及下一页 URL。
 - 剧集排序方式。
 - 当前动画、剧集和焦点 ID。
 
-所有用户行为通过 ViewModel 方法进入，例如翻页、选择动画、切换排序、加载更多、播放、重试和返回。Compose 只渲染状态并转发事件。
+所有用户行为通过 ViewModel 方法进入，例如选择动画、切换排序、加载更多、播放、重试和返回。Compose 只渲染状态并转发事件。
 
 每类异步请求都持有 Job。打开新动画、播放新剧集或离开页面时取消旧 Job；请求完成后还会核对当前页面、动画 ID、剧集 ID 和分页 URL，旧结果不能写入新页面。
 
@@ -115,10 +114,10 @@ suspend fun resolvePlayback(anime: Anime, episode: Episode): PlayableSource
   → GET /animelist.json
   → parseAnimeList
   → AppUiState.anime = Content
-  → Compose 每 20 项进行本地分页
+  → Compose 使用 LazyVerticalGrid 连续展示完整列表
 ```
 
-整个动画 JSON 只请求一次，翻页不会再次访问网络。
+整个动画 JSON 只请求一次；列表由 Compose 惰性组合可见区域附近的卡片，向下滚动不会再次访问网络。
 
 ### 剧集列表
 
@@ -158,11 +157,10 @@ AnimeList → EpisodeList → Player
 
 焦点策略：
 
-- 动画翻到下一页时聚焦第一项，翻到上一页时聚焦最后一项。
-- ViewModel 保存原动画/剧集 ID；网格通过 `LazyGridState.scrollToItem` 先滚动到目标，再在目标卡片完成布局后请求焦点。
-- 从剧集页返回时恢复原动画及页码。
+- ViewModel 保存原动画/剧集 ID；动画网格通过 `LazyGridState.scrollToItem` 先滚动到目标，再在目标卡片完成布局后请求焦点。
+- 从剧集页返回时恢复原动画及卡片焦点。
 - 从播放器返回时恢复原剧集。
-- 页面末尾的分页哨兵在获得焦点时自动触发分页，同时保留真实末项的可点击性。
+- 动画列表滚动到完整数据集末尾后结束；剧集列表仍使用分页哨兵加载更早剧集。
 
 ## 6. 错误处理
 
@@ -186,9 +184,8 @@ Idle → Loading → Content
 
 - JSON、HTML 与播放响应解析。
 - 成人外站条目过滤。
-- 20 项本地分页边界。
 - 视频请求的 Origin、Referer、表单内容和 Cookie 传递。
-- ViewModel 的加载、分页、剧集排序、播放错误、请求取消和旧结果保护状态。
+- ViewModel 的加载、剧集分页、剧集排序、播放错误、请求取消和旧结果保护状态。
 - 播放重试找不到原剧集时不会调用旧签名。
 
 测试使用固定 fixture，不依赖 Anime1 在线服务。
@@ -196,8 +193,8 @@ Idle → Loading → Content
 ### Compose 设备测试
 
 - 左侧栏和文字卡片展示。
-- 下一页切换。
-- 动画页进入剧集页。
+- 完整动画列表展示及焦点恢复。
+- 动画列表进入剧集页。
 - 播放错误页的“重试/返回”操作。
 - DPAD 播放控制和非可见卡片的滚动/焦点恢复。
 

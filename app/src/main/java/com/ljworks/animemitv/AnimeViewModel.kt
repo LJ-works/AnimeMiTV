@@ -34,7 +34,6 @@ enum class EpisodeSort {
 data class AppUiState(
     val screen: AppScreen = AppScreen.AnimeList,
     val anime: LoadState<List<Anime>> = LoadState.Loading,
-    val animePageIndex: Int = 0,
     val focusedAnimeId: Int? = null,
     val selectedAnime: Anime? = null,
     val episodes: LoadState<List<Episode>> = LoadState.Idle,
@@ -65,7 +64,7 @@ class AnimeViewModel(
             _uiState.update { it.copy(anime = LoadState.Loading) }
             try {
                 val items = dataSource.fetchAnimeList()
-                _uiState.update { it.copy(anime = LoadState.Content(items), animePageIndex = 0) }
+                _uiState.update { it.copy(anime = LoadState.Content(items)) }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
@@ -75,35 +74,6 @@ class AnimeViewModel(
     }
 
     fun retryAnime() = loadAnime()
-
-    fun nextAnimePage() {
-        val state = _uiState.value
-        val items = (state.anime as? LoadState.Content)?.value ?: return
-        val page = items.page(state.animePageIndex)
-        if (page.hasNext) {
-            val nextPage = items.page(page.pageIndex + 1)
-            _uiState.update {
-                it.copy(
-                    animePageIndex = nextPage.pageIndex,
-                    focusedAnimeId = nextPage.items.firstOrNull()?.id,
-                )
-            }
-        }
-    }
-
-    fun previousAnimePage() {
-        val state = _uiState.value
-        val items = (state.anime as? LoadState.Content)?.value ?: return
-        if (state.animePageIndex > 0) {
-            val previousPage = items.page(state.animePageIndex - 1)
-            _uiState.update {
-                it.copy(
-                    animePageIndex = previousPage.pageIndex,
-                    focusedAnimeId = previousPage.items.lastOrNull()?.id,
-                )
-            }
-        }
-    }
 
     fun rememberAnimeFocus(id: Int) {
         _uiState.update { if (it.screen == AppScreen.AnimeList) it.copy(focusedAnimeId = id) else it }
