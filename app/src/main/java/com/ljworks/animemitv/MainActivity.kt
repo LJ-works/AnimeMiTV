@@ -183,10 +183,7 @@ private fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
             when (val anime = state.anime) {
                 LoadState.Loading -> StatusMessage("正在加载动画列表…")
                 is LoadState.Error -> RetryMessage(anime.message, viewModel::retryAnime)
-                is LoadState.Content -> {
-                    val page = anime.value.page(state.animePageIndex)
-                    AnimeGrid(page, state.focusedAnimeId, viewModel)
-                }
+                is LoadState.Content -> AnimeGrid(anime.value, state.focusedAnimeId, viewModel)
                 LoadState.Idle -> Unit
             }
         }
@@ -210,66 +207,49 @@ private fun SideBar() {
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun AnimeGrid(page: AnimePage, focusedAnimeId: Int?, viewModel: AnimeViewModel) {
+private fun AnimeGrid(items: List<Anime>, focusedAnimeId: Int?, viewModel: AnimeViewModel) {
     val gridState = rememberLazyGridState()
     val firstCardRequester = remember { FocusRequester() }
-    val targetAnimeId = page.items.firstOrNull { it.id == focusedAnimeId }?.id ?: page.items.firstOrNull()?.id
-    val targetAnimeIndex = page.items.indexOfFirst { it.id == targetAnimeId }
+    val targetAnimeId = items.firstOrNull { it.id == focusedAnimeId }?.id ?: items.firstOrNull()?.id
+    val targetAnimeIndex = items.indexOfFirst { it.id == targetAnimeId }
     var focusRestored by remember(targetAnimeId) { mutableStateOf(false) }
-    LaunchedEffect(page.pageIndex, targetAnimeId) {
+    LaunchedEffect(targetAnimeId) {
         if (targetAnimeIndex >= 0) gridState.scrollToItem(targetAnimeIndex)
     }
-    Column(modifier = Modifier.fillMaxSize()) {
-        if (page.hasPrevious) {
-            PageSentinel("上一页") { viewModel.previousAnimePage() }
-            Spacer(Modifier.height(8.dp))
-        }
-        if (page.items.isEmpty()) {
-            StatusMessage("没有可显示的动画")
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
-                state = gridState,
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
-            ) {
-                items(page.items, key = { it.id }) { anime ->
-                    val cardModifier = Modifier
-                        .onFocusChanged { if (it.isFocused) viewModel.rememberAnimeFocus(anime.id) }
-                        .let { modifier ->
-                            if (anime.id == targetAnimeId) {
-                                modifier
-                                    .focusRequester(firstCardRequester)
-                                    .onGloballyPositioned {
-                                        if (!focusRestored) {
-                                            focusRestored = true
-                                            firstCardRequester.requestFocus()
-                                        }
-                                    }
-                            } else {
-                                modifier
-                            }
-                        }
-                    AnimeCard(
-                        anime = anime,
-                        modifier = cardModifier,
-                        onClick = { viewModel.openAnime(anime) },
-                    )
-                }
-            }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp)
-                .testTag("anime-bottom-bar"),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+    if (items.isEmpty()) {
+        StatusMessage("没有可显示的动画")
+    } else {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(4),
+            state = gridState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(18.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Text("第 ${page.pageIndex + 1} / ${page.totalPages} 页")
-            if (page.hasNext) PageSentinel("下一页") { viewModel.nextAnimePage() }
+            items(items, key = { it.id }) { anime ->
+                val cardModifier = Modifier
+                    .onFocusChanged { if (it.isFocused) viewModel.rememberAnimeFocus(anime.id) }
+                    .let { modifier ->
+                        if (anime.id == targetAnimeId) {
+                            modifier
+                                .focusRequester(firstCardRequester)
+                                .onGloballyPositioned {
+                                    if (!focusRestored) {
+                                        focusRestored = true
+                                        firstCardRequester.requestFocus()
+                                    }
+                                }
+                        } else {
+                            modifier
+                        }
+                    }
+                AnimeCard(
+                    anime = anime,
+                    modifier = cardModifier,
+                    onClick = { viewModel.openAnime(anime) },
+                )
+            }
         }
     }
 }

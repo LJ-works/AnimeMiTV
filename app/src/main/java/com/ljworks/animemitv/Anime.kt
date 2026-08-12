@@ -5,8 +5,6 @@ import org.json.JSONException
 import org.json.JSONObject
 import org.jsoup.Jsoup
 
-private const val ANIME_PAGE_SIZE = 20
-
 data class Anime(
     val id: Int,
     val title: String,
@@ -37,24 +35,6 @@ data class PlayableSource(
     val url: String,
     val headers: Map<String, String> = emptyMap(),
 )
-
-data class AnimePage(
-    val items: List<Anime>,
-    val pageIndex: Int,
-    val totalPages: Int,
-) {
-    val hasPrevious: Boolean get() = pageIndex > 0
-    val hasNext: Boolean get() = pageIndex < totalPages - 1
-}
-
-fun List<Anime>.page(index: Int, pageSize: Int = ANIME_PAGE_SIZE): AnimePage {
-    require(pageSize > 0) { "pageSize must be positive" }
-    val totalPages = maxOf(1, (size + pageSize - 1) / pageSize)
-    val pageIndex = index.coerceIn(0, totalPages - 1)
-    val from = (pageIndex * pageSize).coerceAtMost(size)
-    val to = (from + pageSize).coerceAtMost(size)
-    return AnimePage(subList(from, to), pageIndex, totalPages)
-}
 
 fun parseAnimeList(json: String): List<Anime> {
     val rows = JSONArray(json)

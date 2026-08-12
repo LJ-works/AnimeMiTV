@@ -3,7 +3,6 @@ package com.ljworks.animemitv
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -23,20 +22,6 @@ class AnimeDataTest {
         assertEquals("相反的你和我 第二季", result[0].title)
         assertEquals("夏", result[0].season)
         assertEquals("另一部动画", result[1].title)
-    }
-
-    @Test
-    fun localPagingKeepsTwentyItemsPerPage() {
-        val anime = (1..21).map { Anime(it, "动画 $it", "1", "2026", "夏", "") }
-
-        val first = anime.page(0)
-        val second = anime.page(1)
-
-        assertEquals(20, first.items.size)
-        assertEquals(1, second.items.size)
-        assertEquals(2, first.totalPages)
-        assertTrue(first.hasNext)
-        assertTrue(second.hasPrevious)
     }
 
     @Test

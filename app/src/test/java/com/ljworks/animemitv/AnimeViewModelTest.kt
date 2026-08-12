@@ -12,17 +12,15 @@ class AnimeViewModelTest {
     private val episode = Episode("1", "相反的你和我 第二季 [01]", "https://anime1.me/1", "request", "v1", "pt2")
 
     @Test
-    fun loadingAnimeExposesContentAndSupportsLocalPageChanges() {
-        val dataSource = FakeDataSource(animeList = (1..21).map { anime.copy(id = it) })
-        val viewModel = AnimeViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
+    fun loadingAnimeExposesTheCompleteList() {
+        val animeList = (1..21).map { anime.copy(id = it) }
+        val viewModel = AnimeViewModel(FakeDataSource(animeList = animeList), CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.loadAnime()
-        viewModel.nextAnimePage()
 
         val state = viewModel.uiState.value
         assertTrue(state.anime is LoadState.Content)
-        assertEquals(1, state.animePageIndex)
-        assertEquals(1, (state.anime as LoadState.Content).value.page(1).items.size)
+        assertEquals(animeList, (state.anime as LoadState.Content).value)
     }
 
     @Test

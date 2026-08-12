@@ -8,14 +8,14 @@ AnimeMiTV 是一个面向 Google TV / Android TV 的第三方 Anime1 客户端�
 
 - YouTube 风格左侧导航栏，目前仅包含“动画”。
 - 从 Anime1 加载完整动画列表，以纯文字卡片展示。
-- 每页显示 20 部动画，支持遥控器焦点翻页。
+- 在完整动画列表上连续滚动，支持遥控器焦点导航。
 - 解析动画分类页面，展示并排序剧集。
 - 长篇动画的历史剧集按需加载。
 - 使用 AndroidX Media3 在应用内播放视频。
 - 播放器支持 DPAD Center 播放/暂停、左右键每次跳转 10 秒。
 - 播放中错误会显示“重试”和“返回”，并重新获取播放签名。
 - 网络、剧集和播放加载失败时可重试。
-- 返回列表时恢复原页和原卡片焦点。
+- 返回列表时恢复原动画及卡片焦点。
 
 ## 技术栈
 
@@ -111,7 +111,7 @@ ANDROID_KEY_PASSWORD
 ```text
 app/src/main/java/com/ljworks/animemitv/
 ├── MainActivity.kt       # Activity、TV 页面与播放器 UI
-├── Anime.kt              # 领域模型、解析与本地分页
+├── Anime.kt              # 领域模型与解析
 ├── Anime1DataSource.kt   # Anime1 网络访问与 Cookie
 ├── AnimeViewModel.kt     # 页面状态、导航和用户事件
 └── ui/theme/             # Compose TV 主题
