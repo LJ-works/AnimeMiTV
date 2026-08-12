@@ -161,14 +161,20 @@ private fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
     LaunchedEffect(Unit) {
         if (state.anime is LoadState.Loading || state.anime is LoadState.Idle) viewModel.loadAnime()
     }
-    Row(modifier = Modifier.fillMaxSize().padding(20.dp)) {
-        SideBar()
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
+    ) {
+        Column(modifier = Modifier.padding(top = 20.dp)) {
+            SideBar()
+        }
         Spacer(Modifier.width(20.dp))
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(36.dp)
+                    .height(56.dp)
                     .testTag("anime-top-bar"),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

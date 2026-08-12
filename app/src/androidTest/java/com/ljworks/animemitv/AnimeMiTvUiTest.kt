@@ -48,7 +48,7 @@ class AnimeMiTvUiTest {
         composeRule.onNodeWithTag("sidebar").assertWidthIsEqualTo(90.dp)
         composeRule.onNodeWithText("AnimeMiTV").assertIsDisplayed()
         composeRule.onNodeWithTag("sidebar-animation").assertIsDisplayed()
-        composeRule.onNodeWithTag("anime-top-bar").assertHeightIsEqualTo(36.dp)
+        composeRule.onNodeWithTag("anime-top-bar").assertHeightIsEqualTo(56.dp)
         composeRule.onNodeWithTag("anime-title").assertIsDisplayed()
         composeRule.onNodeWithTag("anime-bottom-bar").assertIsDisplayed()
         composeRule.onNodeWithText("测试动画").assertIsDisplayed()
