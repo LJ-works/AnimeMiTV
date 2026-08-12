@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -67,7 +66,6 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import androidx.compose.foundation.BorderStroke
-import kotlinx.coroutines.launch
 import com.ljworks.animemitv.ui.theme.AnimeMiTVTheme
 import com.ljworks.animemitv.ui.theme.BackgroundEnd
 import com.ljworks.animemitv.ui.theme.BackgroundStart
@@ -215,12 +213,10 @@ private fun SideBar() {
 @Composable
 private fun AnimeGrid(items: List<Anime>, focusedAnimeId: Int?, viewModel: AnimeViewModel) {
     val gridState = rememberLazyGridState()
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val firstCardRequester = remember { FocusRequester() }
     val targetAnimeId = items.firstOrNull { it.id == focusedAnimeId }?.id ?: items.firstOrNull()?.id
     val targetAnimeIndex = items.indexOfFirst { it.id == targetAnimeId }
     var focusRestored by remember(targetAnimeId) { mutableStateOf(false) }
-    var focusedIndex by remember { mutableStateOf(-1) }
     LaunchedEffect(Unit) {
         if (targetAnimeIndex >= 0) gridState.scrollToItem(targetAnimeIndex)
     }
@@ -235,30 +231,9 @@ private fun AnimeGrid(items: List<Anime>, focusedAnimeId: Int?, viewModel: Anime
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            itemsIndexed(items, key = { _, anime -> anime.id }) { index, anime ->
+            items(items, key = { it.id }) { anime ->
                 val cardModifier = Modifier
-                    .onFocusChanged {
-                        if (it.isFocused) {
-                            val previousIndex = focusedIndex
-                            focusedIndex = index
-                            viewModel.rememberAnimeFocus(anime.id)
-                            if (previousIndex >= 0 && previousIndex / 5 != index / 5) {
-                                scope.launch {
-                                    androidx.compose.runtime.withFrameNanos { }
-                                    val row = index / 5
-                                    val lastRow = (items.size - 1) / 5
-                                    val viewport = gridState.layoutInfo
-                                    val viewportHeight = viewport.viewportEndOffset - viewport.viewportStartOffset
-                                    val targetOffset = when {
-                                        row == 0 -> 0
-                                        row == lastRow -> viewportHeight - 150
-                                        else -> (viewportHeight - 150) / 2
-                                    }
-                                    gridState.animateScrollToItem(index, targetOffset)
-                                }
-                            }
-                        }
-                    }
+                    .onFocusChanged { if (it.isFocused) viewModel.rememberAnimeFocus(anime.id) }
                     .let { modifier ->
                         if (anime.id == targetAnimeId) {
                             modifier
