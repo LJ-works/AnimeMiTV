@@ -2,7 +2,10 @@ package com.ljworks.animemitv
 
 import android.content.Context
 import android.os.Bundle
+import android.util.AttributeSet
 import android.view.KeyEvent
+import android.view.LayoutInflater
+import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -71,7 +74,7 @@ import com.ljworks.animemitv.ui.theme.BackgroundEnd
 import com.ljworks.animemitv.ui.theme.BackgroundStart
 
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
-private class AnimePlayerView(context: Context) : PlayerView(context) {
+class AnimePlayerView(context: Context, attrs: AttributeSet?) : PlayerView(context, attrs) {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
             showController()
@@ -109,9 +112,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AnimeMiTVApp(viewModel: AnimeViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    if (state.screen != AppScreen.AnimeList) {
-        BackHandler { viewModel.back() }
-    }
+    if (state.screen == AppScreen.EpisodeList) BackHandler { viewModel.back() }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -372,6 +373,7 @@ private fun EpisodeGrid(state: AppUiState, sourceEpisodes: List<Episode>, viewMo
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun PlayerScreen(state: AppUiState, viewModel: AnimeViewModel) {
+    BackHandler { viewModel.back() }
     when (val playback = state.playback) {
         LoadState.Loading, LoadState.Idle -> StatusMessage("正在准备播放…")
         is LoadState.Error -> RetryMessage(playback.message, viewModel::retryPlayback, "返回", viewModel::back)
@@ -394,6 +396,9 @@ private fun VideoPlayer(
     onError: (String, String) -> Unit,
 ) {
     val context = LocalContext.current
+    var controllerVisible by remember { mutableStateOf(false) }
+    var hideController by remember { mutableStateOf<(() -> Unit)?>(null) }
+    BackHandler(controllerVisible) { hideController?.invoke() }
     val player = remember(source.headers) {
         val dataSourceFactory = DefaultHttpDataSource.Factory().setDefaultRequestProperties(source.headers)
         ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory)).build()
@@ -417,15 +422,22 @@ private fun VideoPlayer(
     }
     AndroidView(
         factory = {
-            AnimePlayerView(it).apply {
+            (LayoutInflater.from(it).inflate(R.layout.anime_player_view, null) as AnimePlayerView).apply {
                 this.player = player
                 useController = true
                 setShowPreviousButton(false)
                 setShowNextButton(false)
                 setShowRewindButton(false)
                 setShowFastForwardButton(false)
-                findViewById<DefaultTimeBar>(androidx.media3.ui.R.id.exo_progress)
-                    .setKeyTimeIncrement(15_000L)
+                val timeBar = findViewById<ConfirmTimeBar>(androidx.media3.ui.R.id.exo_progress)
+                timeBar.setKeyTimeIncrement(15_000L)
+                setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
+                    controllerVisible = visibility == View.VISIBLE
+                })
+                hideController = {
+                    timeBar.cancelPreview()
+                    hideController()
+                }
             }
         },
         modifier = Modifier.fillMaxSize(),
