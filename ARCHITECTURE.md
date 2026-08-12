@@ -35,6 +35,10 @@ app/src/
 │   ├── AndroidManifest.xml
 │   └── java/com/ljworks/animemitv/
 │       ├── MainActivity.kt
+│       ├── AnimeListScreen.kt
+│       ├── EpisodeListScreen.kt
+│       ├── PlayerScreen.kt
+│       ├── SharedUi.kt
 │       ├── Anime.kt
 │       ├── Anime1DataSource.kt
 │       ├── AnimeViewModel.kt
@@ -48,13 +52,13 @@ app/src/
     └── java/com/ljworks/animemitv/AnimeMiTvUiTest.kt
 ```
 
-### `MainActivity.kt`
+### UI 文件
 
-- 创建 `AnimeViewModel` 和真实 `Anime1HttpDataSource`。
-- 根据 `AppScreen` 在动画列表、剧集列表和播放器间切换。
-- 实现左侧栏、文字卡片网格、错误重试与焦点恢复。
-- 使用 `PlayerView` 和 ExoPlayer 自动播放视频，仅显示播放/暂停和进度条。
-- 左右键自动聚焦进度条并以 15 秒为单位预览跳转，确认后才提交；上下键保留 Media3 默认焦点导航，控制器显示时返回仅关闭控制器；播放器同时监听播放错误。
+- `MainActivity.kt`：创建 `AnimeViewModel` 和真实 `Anime1HttpDataSource`，并根据 `AppScreen` 在动画列表、剧集列表和播放器间切换。
+- `AnimeListScreen.kt`：实现动画列表、文字卡片网格和焦点恢复。
+- `EpisodeListScreen.kt`：实现剧集列表、排序、文字卡片网格和焦点恢复。
+- `PlayerScreen.kt`：使用 `PlayerView` 和 ExoPlayer 自动播放视频，仅显示播放/暂停和进度条；左右键自动聚焦进度条并以 15 秒为单位预览跳转，确认后才提交；上下键保留 Media3 默认焦点导航，控制器显示时返回仅关闭控制器；播放器同时监听播放错误。
+- `SharedUi.kt`：实现左侧栏、加载状态和错误重试等共享界面。
 
 ### `Anime.kt`
 
