@@ -116,7 +116,7 @@ private val categoryPattern = Pattern.compile("(?:[?&]cat=)(\\d+)")
 
 fun parseCurrentSeason(html: String, pageUrl: String = "https://anime1.me/"): AnimeSeason {
     val document = Jsoup.parse(html, pageUrl)
-    val link = document.select("a[href]").firstOrNull { seasonPattern.matcher(it.text().trim()).find() }
+    val link = document.select("#masthead a[href]").firstOrNull { seasonPattern.matcher(it.text().trim()).find() }
         ?: error("Anime1 首页未找到当前季")
     val label = seasonPattern.matcher(link.text().trim()).run {
         if (!find()) error("Anime1 当前季格式无效") else group(0).orEmpty()

@@ -56,6 +56,20 @@ class AnimeMiTvUiTest {
     }
 
     @Test
+    fun historicalSeasonDoesNotHighlightCurrentWeekday() {
+        val current = AnimeSeason("2026年夏季新番", "https://anime1.me/2026-summer")
+        val historical = AnimeSeason("2026年春季新番", "https://anime1.me/2026-spring")
+        val state = seasonalState(
+            historical,
+            listOf(SeasonalAnime("first", "第一部", "https://anime1.me/?cat=1")),
+        ).copy(currentSeason = current)
+
+        composeRule.setContent { AnimeMiTVTheme { SeasonalListScreen(state, viewModel(emptyList())) } }
+
+        assertEquals(0, composeRule.onAllNodesWithTag("current-weekday-${java.time.LocalDate.now().dayOfWeek.value % 7}").fetchSemanticsNodes().size)
+    }
+
+    @Test
     fun seasonalScheduleInitiallyFocusesFirstCard() {
         val selectedSeason = AnimeSeason("2026年夏季新番", "https://anime1.me/2026-summer")
         val state = seasonalState(

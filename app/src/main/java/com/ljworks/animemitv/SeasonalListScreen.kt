@@ -162,7 +162,9 @@ private fun ScheduleGrid(
                 schedule.days.forEachIndexed { index, _ ->
                     Text(
                         listOf("日", "一", "二", "三", "四", "五", "六")[index],
-                        modifier = Modifier.weight(1f).testTag("weekday-$index"),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag(if (isCurrentDay(state, index)) "current-weekday-$index" else "weekday-$index"),
                         color = if (isCurrentDay(state, index)) Color(0xFF8FE3E0) else Color.Unspecified,
                     )
                 }

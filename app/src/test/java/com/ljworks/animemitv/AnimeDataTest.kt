@@ -40,7 +40,7 @@ class AnimeDataTest {
     @Test
     fun parsesCurrentSeasonAndSevenDayScheduleIncludingUnavailableEntries() {
         val home = """
-            <a href="https://anime1.me/2026%e5%b9%b4%e5%a4%8f%e5%ad%a3%e6%96%b0%e7%95%aa">2026年夏季新番</a>
+            <header id="masthead"><a href="https://anime1.me/2026%e5%b9%b4%e5%a4%8f%e5%ad%a3%e6%96%b0%e7%95%aa">2026年夏季新番</a></header>
         """.trimIndent()
         val season = """
             <table><thead><tr><th>日</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th></tr></thead>
@@ -56,6 +56,19 @@ class AnimeDataTest {
         assertEquals(null, schedule.days[0].single().categoryUrl)
         assertEquals("有资源动画", schedule.days[1].single().title)
         assertEquals("https://anime1.me/?cat=1933", schedule.days[1].single().categoryUrl)
+    }
+
+    @Test
+    fun parsesCurrentSeasonFromMastheadInsteadOfEarlierSeasonLink() {
+        val home = """
+            <article><a href="/2025年秋季新番">2025年秋季新番</a></article>
+            <header id="masthead"><a href="/2026年夏季新番">2026年夏季新番</a></header>
+        """.trimIndent()
+
+        val season = parseCurrentSeason(home)
+
+        assertEquals("2026年夏季新番", season.label)
+        assertEquals("https://anime1.me/2026年夏季新番", season.url)
     }
 
     @Test
