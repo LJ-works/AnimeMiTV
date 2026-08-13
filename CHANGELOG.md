@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.4.0](https://github.com/LJ-works/AnimeMiTV/compare/v1.3.0...v1.4.0) (2026-08-13)
+
+
+### Features
+
+* add followed anime list ([#39](https://github.com/LJ-works/AnimeMiTV/issues/39)) ([e007de1](https://github.com/LJ-works/AnimeMiTV/commit/e007de1db780f5860c1875b9f70c5f450b3d5371))
+* browse seasonal anime schedules ([#32](https://github.com/LJ-works/AnimeMiTV/issues/32)) ([0af2636](https://github.com/LJ-works/AnimeMiTV/commit/0af26361953097063e5af3e3ca5ef6b6dcd42984)), closes [#29](https://github.com/LJ-works/AnimeMiTV/issues/29)
+
+
+### Bug Fixes
+
+* preserve discovered current season URL ([#34](https://github.com/LJ-works/AnimeMiTV/issues/34)) ([de0ad76](https://github.com/LJ-works/AnimeMiTV/commit/de0ad764f505aad6f34492177787d8cf0789b269))
+* restore seasonal TV focus navigation ([#35](https://github.com/LJ-works/AnimeMiTV/issues/35)) ([fcdd974](https://github.com/LJ-works/AnimeMiTV/commit/fcdd9741d066d91fac48cebaf3f6b6a51a31f6dc)), closes [#31](https://github.com/LJ-works/AnimeMiTV/issues/31)
+* scope current season to homepage header ([#37](https://github.com/LJ-works/AnimeMiTV/issues/37)) ([c65d48d](https://github.com/LJ-works/AnimeMiTV/commit/c65d48de799e1108a6c3a3a6018e764091f1c89b)), closes [#36](https://github.com/LJ-works/AnimeMiTV/issues/36)
+
 ## [1.3.0](https://github.com/LJ-works/AnimeMiTV/compare/v1.2.0...v1.3.0) (2026-08-12)
 
 
