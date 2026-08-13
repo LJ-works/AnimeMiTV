@@ -43,6 +43,7 @@ app/src/
 │       ├── Anime.kt
 │       ├── Anime1DataSource.kt
 │       ├── AnimeViewModel.kt
+│       ├── FollowedAnimeStore.kt
 │       └── ui/theme/
 ├── test/
 │   ├── java/com/ljworks/animemitv/
@@ -55,12 +56,13 @@ app/src/
 
 ### UI 文件
 
-- `MainActivity.kt`：创建 `AnimeViewModel` 和真实 `Anime1HttpDataSource`，并根据 `AppScreen` 在动画列表、季度排期、剧集列表和播放器间切换。
+- `MainActivity.kt`：创建 `AnimeViewModel`、真实 `Anime1HttpDataSource` 和本机关注存储，并根据 `AppScreen` 在动画列表、关注动画列表、季度排期、剧集列表和播放器间切换。
 - `AnimeListScreen.kt`：实现动画列表、文字卡片网格和焦点恢复。
 - `SeasonalListScreen.kt`：实现季度选择器、日到六排期、无资源提示与季度焦点恢复。
 - `EpisodeListScreen.kt`：实现剧集列表、排序、文字卡片网格和焦点恢复。
 - `PlayerScreen.kt`：使用 `PlayerView` 和 ExoPlayer 自动播放视频，仅显示播放/暂停和进度条；左右键自动聚焦进度条并以 15 秒为单位预览跳转，确认后才提交；上下键保留 Media3 默认焦点导航，控制器显示时返回仅关闭控制器；播放器同时监听播放错误。
-- `SharedUi.kt`：实现左侧栏、加载状态和错误重试等共享界面。
+- `SharedUi.kt`：实现包含动画、季度新番和关注入口的左侧栏、加载状态和错误重试等共享界面。
+- `FollowedAnimeStore.kt`：定义关注动画本地存储接缝，并提供基于 Android 原生键值存储的实现。
 
 ### `Anime.kt`
 
@@ -106,11 +108,12 @@ suspend fun resolvePlayback(anime: Anime, episode: Episode): PlayableSource
 
 `AnimeViewModel` 是唯一应用状态持有者，`AppUiState` 包含：
 
-- 当前页面 `AnimeList / SeasonalList / EpisodeList / Player`。
+- 当前页面 `AnimeList / SeasonalList / FollowedAnimeList / EpisodeList / Player`。
 - 动画、季度发现/排期、剧集和播放的加载状态。
 - 完整动画列表、当前/选中季度、进程内季度排期缓存及已加载剧集。
 - 剧集排序方式。
-- 动画、季度排期和剧集的独立焦点恢复状态。
+- 动画、关注动画、季度排期和剧集的独立焦点恢复状态。
+- 本机关注动画 ID、按动画总表顺序派生的关注列表及保存失败提示。
 
 所有用户行为通过 ViewModel 方法进入，例如选择动画或季度、切换排序、播放、重试和返回。Compose 只渲染状态并转发事件。
 
@@ -174,21 +177,21 @@ suspend fun resolvePlayback(anime: Anime, episode: Episode): PlayableSource
 
 ## 5. UI 与焦点模型
 
-应用没有引入 Navigation Compose，而是通过 `AppScreen` 切换三个页面：
+应用没有引入 Navigation Compose，而是通过 `AppScreen` 切换五个页面：
 
 ```text
-AnimeList ─┐
-            ├→ EpisodeList → Player
-SeasonalList ┘       ↑           │
-     ↑               └───────────┘ Back
-     └─────────────────────────────┘
+AnimeList ───────┐
+SeasonalList ────┼→ EpisodeList → Player
+FollowedAnimeList┘       ↑           │
+     ↑                   └───────────┘ Back
+     └────────────────────────────────┘
 ```
 
 焦点策略：
 
-- ViewModel 保存原动画、季度排期和剧集 ID；动画网格通过 `LazyGridState.scrollToItem` 先滚动到目标，再在目标卡片完成布局后请求焦点。
+- ViewModel 保存动画列表、关注动画列表、原动画/关注动画/季度排期和剧集 ID；动画网格通过 `LazyGridState.scrollToItem` 先滚动到目标，再在目标卡片完成布局后请求焦点。
 - 季度页初始聚焦第一张排期卡片；第一排按上进入季度选择器，选择器按下回到排期。季度按钮获得焦点时会横向滚动到可见区域。
-- 从剧集页返回时按来源恢复动画列表或原季度、排期位置及卡片焦点。
+- 从剧集页返回时按来源恢复动画列表、关注动画列表或原季度、排期位置及卡片焦点。
 - 从播放器返回时恢复原剧集。
 - 动画列表滚动到完整数据集末尾后结束；剧集列表仍使用分页哨兵加载更早剧集。
 
@@ -206,7 +209,7 @@ Idle → Loading → Content
 - 播放解析或播放过程中失败：释放播放器并留在错误页，可重新获取签名或返回。
 - 播放重试刷新剧集分类页；若找不到原剧集，则直接报错，不复用旧签名。
 
-应用当前不做磁盘缓存；进程结束后会重新请求数据。
+应用当前不缓存网络数据；进程结束后会重新请求数据。关注动画仅将动画 ID 持久保存到本机，不保存动画资料。
 
 ## 7. 测试策略
 
@@ -215,7 +218,7 @@ Idle → Loading → Content
 - JSON、季度/分类 HTML 与播放响应解析。
 - 成人外站条目过滤。
 - 视频请求的 Origin、Referer、表单内容和 Cookie 传递。
-- ViewModel 的动画和季度加载、季度缓存/重试、剧集排序、播放错误、请求取消和旧结果保护状态。
+- ViewModel 的动画和关注动画加载、关注切换/持久化/失败反馈、来源导航、焦点恢复、季度缓存/重试、剧集排序、播放错误、请求取消和旧结果保护状态。
 - 播放重试找不到原剧集时不会调用旧签名。
 
 测试使用固定 fixture，不依赖 Anime1 在线服务。
@@ -223,7 +226,8 @@ Idle → Loading → Content
 ### Compose 设备测试
 
 - 左侧栏、季度选择器和文字卡片展示。
-- 完整动画列表与季度排期展示及独立焦点恢复。
+- 完整动画列表、关注动画列表与季度排期展示及独立焦点恢复。
+- 关注动画入口、空状态、过滤顺序和剧集页关注按钮。
 - 动画列表进入剧集页。
 - 播放错误页的“重试/返回”操作。
 - 播放页面的播放/暂停、进度条跳转和非可见卡片的滚动/焦点恢复。
@@ -244,6 +248,6 @@ Idle → Loading → Content
 
 - 搜索和筛选：在 `AnimeViewModel` 对已加载动画列表派生结果。
 - 播放记录：为剧集进度增加独立的本地持久化数据源。
-- 收藏：增加最小本地存储，不修改 Anime1 网络数据源。
+- 关注动画：使用最小本地存储保存动画 ID，不修改 Anime1 网络数据源。
 - Anime1 页面变化：仅修改 `Anime1HttpDataSource` 或 `Anime.kt` 中的解析器及 fixtures。
 - 新侧栏页面：先扩展 `AppScreen`，只有页面数量和返回栈明显增长时再引入导航库。

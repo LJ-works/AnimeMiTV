@@ -1,6 +1,7 @@
 package com.ljworks.animemitv
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -9,9 +10,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -27,7 +30,10 @@ class MainActivity : ComponentActivity() {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                AnimeViewModel(Anime1HttpDataSource()) as T
+                AnimeViewModel(
+                    Anime1HttpDataSource(),
+                    followedAnimeStore = SharedPreferencesFollowedAnimeStore(this@MainActivity),
+                ) as T
         }
     }
 
@@ -46,7 +52,17 @@ class MainActivity : ComponentActivity() {
 @Composable
 internal fun AnimeMiTVApp(viewModel: AnimeViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    if (state.screen != AppScreen.AnimeList && state.screen != AppScreen.SeasonalList) BackHandler { viewModel.back() }
+    val context = LocalContext.current
+    LaunchedEffect(state.followedAnimeSaveError) {
+        state.followedAnimeSaveError?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            viewModel.clearFollowedAnimeSaveError()
+        }
+    }
+    if (state.screen != AppScreen.AnimeList &&
+        state.screen != AppScreen.SeasonalList &&
+        state.screen != AppScreen.FollowedAnimeList
+    ) BackHandler { viewModel.back() }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -58,6 +74,7 @@ internal fun AnimeMiTVApp(viewModel: AnimeViewModel) {
             when (state.screen) {
                 AppScreen.AnimeList -> AnimeListScreen(state, viewModel)
                 AppScreen.SeasonalList -> SeasonalListScreen(state, viewModel)
+                AppScreen.FollowedAnimeList -> AnimeListScreen(state, viewModel)
                 AppScreen.EpisodeList -> EpisodeListScreen(state, viewModel)
                 AppScreen.Player -> PlayerScreen(state, viewModel)
             }

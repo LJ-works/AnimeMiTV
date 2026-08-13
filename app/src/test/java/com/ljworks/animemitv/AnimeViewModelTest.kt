@@ -68,6 +68,155 @@ class AnimeViewModelTest {
     }
 
     @Test
+    fun followedAnimeAreRestoredAndKeepTheAnimeListOrder() {
+        val first = anime.copy(id = 1)
+        val second = anime.copy(id = 2)
+        val viewModel = AnimeViewModel(
+            FakeDataSource(animeList = listOf(first, second)),
+            CoroutineScope(Dispatchers.Unconfined),
+            FakeFollowedAnimeStore(setOf(2, 99, 1)),
+        )
+
+        viewModel.loadAnime()
+        viewModel.openFollowedAnime()
+
+        assertEquals(AppScreen.FollowedAnimeList, viewModel.uiState.value.screen)
+        assertEquals(listOf(first, second), viewModel.uiState.value.followedAnime)
+    }
+
+    @Test
+    fun hiddenFollowedAnimeReturnsWhenTheSourceListContainsItAgain() {
+        val source = MutableAnimeListDataSource()
+        val store = FakeFollowedAnimeStore(setOf(anime.id))
+        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined), store)
+
+        viewModel.loadAnime()
+        assertEquals(emptyList<Anime>(), viewModel.uiState.value.followedAnime)
+
+        source.items = listOf(anime)
+        viewModel.retryAnime()
+
+        assertEquals(listOf(anime), viewModel.uiState.value.followedAnime)
+        assertEquals(setOf(anime.id), store.ids)
+    }
+
+    @Test
+    fun followingAndUnfollowingAnimePersistsAndUpdatesTheList() {
+        val store = FakeFollowedAnimeStore()
+        val viewModel = AnimeViewModel(
+            FakeDataSource(animeList = listOf(anime)),
+            CoroutineScope(Dispatchers.Unconfined),
+            store,
+        )
+
+        viewModel.loadAnime()
+        viewModel.openAnime(anime)
+        viewModel.toggleFollowedAnime()
+
+        assertEquals(setOf(anime.id), viewModel.uiState.value.followedAnimeIds)
+        assertEquals(setOf(anime.id), store.ids)
+
+        viewModel.toggleFollowedAnime()
+
+        assertEquals(emptySet<Int>(), viewModel.uiState.value.followedAnimeIds)
+        assertEquals(emptySet<Int>(), store.ids)
+    }
+
+    @Test
+    fun switchingToFollowedAnimeCancelsEpisodeLoading() {
+        val source = DeferredDataSource()
+        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+
+        viewModel.openAnime(anime)
+        viewModel.openFollowedAnime()
+
+        assertEquals(setOf(anime.id), source.cancelledAnimeIds)
+        assertEquals(AppScreen.FollowedAnimeList, viewModel.uiState.value.screen)
+    }
+
+    @Test
+    fun followedAnimeFocusIsKeptSeparatelyFromTheMainList() {
+        val viewModel = AnimeViewModel(
+            FakeDataSource(animeList = listOf(anime)),
+            CoroutineScope(Dispatchers.Unconfined),
+            FakeFollowedAnimeStore(setOf(anime.id)),
+        )
+
+        viewModel.loadAnime()
+        viewModel.rememberAnimeFocus(anime.id)
+        viewModel.openFollowedAnime()
+        viewModel.rememberAnimeFocus(anime.id)
+
+        assertEquals(anime.id, viewModel.uiState.value.focusedAnimeId)
+        assertEquals(anime.id, viewModel.uiState.value.focusedFollowedAnimeId)
+    }
+
+    @Test
+    fun followedAnimeReturnsToTheFollowedList() {
+        val viewModel = AnimeViewModel(
+            FakeDataSource(animeList = listOf(anime)),
+            CoroutineScope(Dispatchers.Unconfined),
+            FakeFollowedAnimeStore(setOf(anime.id)),
+        )
+
+        viewModel.loadAnime()
+        viewModel.openFollowedAnime()
+        viewModel.openAnime(anime, EpisodeSource.FOLLOWED_ANIME_LIST)
+        viewModel.back()
+
+        assertEquals(AppScreen.FollowedAnimeList, viewModel.uiState.value.screen)
+    }
+
+    @Test
+    fun unfollowedAnimeDisappearsFromTheFollowedListAfterReturning() {
+        val viewModel = AnimeViewModel(
+            FakeDataSource(animeList = listOf(anime)),
+            CoroutineScope(Dispatchers.Unconfined),
+            FakeFollowedAnimeStore(setOf(anime.id)),
+        )
+
+        viewModel.loadAnime()
+        viewModel.openFollowedAnime()
+        viewModel.openAnime(anime, EpisodeSource.FOLLOWED_ANIME_LIST)
+        viewModel.toggleFollowedAnime()
+        viewModel.back()
+
+        assertEquals(emptyList<Anime>(), viewModel.uiState.value.followedAnime)
+    }
+
+    @Test
+    fun failedFollowSaveKeepsTheStateAndReportsAnError() {
+        val store = FakeFollowedAnimeStore(saveSucceeds = false)
+        val viewModel = AnimeViewModel(
+            FakeDataSource(animeList = listOf(anime)),
+            CoroutineScope(Dispatchers.Unconfined),
+            store,
+        )
+
+        viewModel.loadAnime()
+        viewModel.openAnime(anime)
+        viewModel.toggleFollowedAnime()
+
+        assertEquals(emptySet<Int>(), viewModel.uiState.value.followedAnimeIds)
+        assertEquals("关注保存失败", viewModel.uiState.value.followedAnimeSaveError)
+    }
+
+    @Test
+    fun followedSaveErrorCanBeClearedAfterShowingFeedback() {
+        val viewModel = AnimeViewModel(
+            FakeDataSource(animeList = listOf(anime)),
+            CoroutineScope(Dispatchers.Unconfined),
+            FakeFollowedAnimeStore(saveSucceeds = false),
+        )
+
+        viewModel.openAnime(anime)
+        viewModel.toggleFollowedAnime()
+        viewModel.clearFollowedAnimeSaveError()
+
+        assertEquals(null, viewModel.uiState.value.followedAnimeSaveError)
+    }
+
+    @Test
     fun loadingAnimeExposesTheCompleteList() {
         val animeList = (1..21).map { anime.copy(id = it) }
         val viewModel = AnimeViewModel(FakeDataSource(animeList = animeList), CoroutineScope(Dispatchers.Unconfined))
@@ -188,6 +337,17 @@ class AnimeViewModelTest {
         assertEquals("B", (state.episodes as LoadState.Content).value.single().id)
     }
 
+    private class MutableAnimeListDataSource : Anime1DataSource {
+        var items = emptyList<Anime>()
+
+        override suspend fun fetchAnimeList() = items
+
+        override suspend fun fetchEpisodes(anime: Anime, pageUrl: String) = EpisodePage(emptyList(), null)
+
+        override suspend fun resolvePlayback(anime: Anime, episode: Episode) =
+            PlayableSource("https://video.example/episode.mp4")
+    }
+
     private class FakeDataSource(
         private val animeList: List<Anime> = emptyList(),
         private val episode: Episode? = Episode(
@@ -251,13 +411,31 @@ class AnimeViewModelTest {
             PlayableSource("https://video.example/episode.mp4")
     }
 
+    private class FakeFollowedAnimeStore(
+        initialIds: Set<Int> = emptySet(),
+        private val saveSucceeds: Boolean = true,
+    ) : FollowedAnimeStore {
+        var ids = initialIds
+
+        override fun load(): Set<Int> = ids
+
+        override fun save(ids: Set<Int>): Boolean {
+            if (saveSucceeds) this.ids = ids
+            return saveSucceeds
+        }
+    }
+
     private class DeferredDataSource : Anime1DataSource {
         val requests = mutableMapOf<Int, CompletableDeferred<EpisodePage>>()
+        val cancelledAnimeIds = mutableSetOf<Int>()
 
         override suspend fun fetchAnimeList() = emptyList<Anime>()
 
-        override suspend fun fetchEpisodes(anime: Anime, pageUrl: String): EpisodePage =
+        override suspend fun fetchEpisodes(anime: Anime, pageUrl: String): EpisodePage = try {
             requests.getOrPut(anime.id) { CompletableDeferred() }.await()
+        } finally {
+            cancelledAnimeIds += anime.id
+        }
 
         override suspend fun resolvePlayback(anime: Anime, episode: Episode) =
             PlayableSource("https://video.example/episode.mp4")

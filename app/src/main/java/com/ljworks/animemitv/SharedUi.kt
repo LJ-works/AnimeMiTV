@@ -23,6 +23,7 @@ import androidx.tv.material3.Text
 internal fun SideBar(
     onAnime: () -> Unit,
     onSeasonal: () -> Unit,
+    onFollowed: () -> Unit,
     selected: AppScreen,
 ) {
     Column(
@@ -45,6 +46,14 @@ internal fun SideBar(
             enabled = selected != AppScreen.SeasonalList,
         ) {
             Text("季度新番", style = MaterialTheme.typography.bodyMedium)
+        }
+        Spacer(Modifier.height(12.dp))
+        Button(
+            onClick = onFollowed,
+            modifier = Modifier.testTag("sidebar-followed"),
+            enabled = selected != AppScreen.FollowedAnimeList,
+        ) {
+            Text("关注", style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

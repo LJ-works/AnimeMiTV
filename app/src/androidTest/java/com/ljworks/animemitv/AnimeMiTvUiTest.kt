@@ -220,6 +220,47 @@ class AnimeMiTvUiTest {
     }
 
     @Test
+    fun followedAnimePageShowsItsTitleAndSidebarEntry() {
+        val viewModel = viewModel(emptyList())
+
+        composeRule.setContent { AnimeMiTVTheme { AnimeMiTVApp(viewModel) } }
+
+        composeRule.onNodeWithTag("sidebar-followed").assertIsDisplayed()
+        composeRule.onNodeWithTag("sidebar-followed").performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithText("关注的动画").assertIsDisplayed()
+        composeRule.onNodeWithText("还没有关注的动画").assertIsDisplayed()
+    }
+
+    @Test
+    fun followedAnimePageShowsOnlyFollowedAnimeInSourceOrder() {
+        val first = Anime(1, "第一部", "1", "2026", "夏", "")
+        val second = Anime(2, "第二部", "1", "2026", "夏", "")
+        val viewModel = viewModel(listOf(first, second), followedAnimeIds = setOf(2))
+
+        composeRule.setContent { AnimeMiTVTheme { AnimeMiTVApp(viewModel) } }
+
+        composeRule.onNodeWithTag("sidebar-followed").performSemanticsAction(SemanticsActions.OnClick)
+        waitForTag("anime-card-2")
+        composeRule.onNodeWithTag("anime-card-2").assertIsDisplayed()
+        assertEquals(0, composeRule.onAllNodesWithTag("anime-card-1").fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun episodePageCanFollowAnimation() {
+        val anime = Anime(1933, "测试动画", "連載中(01)", "2026", "夏", "")
+        val episode = Episode("1", "测试动画 [01]", "https://anime1.me/1", "request", "v1", "pt2")
+        val viewModel = viewModel(listOf(anime), listOf(episode))
+
+        composeRule.setContent { AnimeMiTVTheme { AnimeMiTVApp(viewModel) } }
+
+        composeRule.onNodeWithTag("anime-card-1933").performSemanticsAction(SemanticsActions.OnClick)
+        waitForTag("follow-anime-button")
+        composeRule.onNodeWithTag("follow-anime-button").performSemanticsAction(SemanticsActions.OnClick)
+
+        composeRule.onNodeWithText("取消关注").assertIsDisplayed()
+    }
+
+    @Test
     fun dpadRestoresAnimeFocusAfterReturningFromEpisodes() {
         val anime = (1..2).map { Anime(it, "测试动画 $it", "1", "2026", "夏", "") }
         val viewModel = viewModel(anime)
@@ -238,6 +279,25 @@ class AnimeMiTvUiTest {
         viewModel.back()
         waitForTag("anime-card-2")
         composeRule.onNodeWithTag("anime-card-2").assertIsFocused()
+    }
+
+    @Test
+    fun firstRowEpisodeCardsMoveUpToSortInsteadOfTheSidebar() {
+        val anime = Anime(1933, "测试动画", "連載中(05)", "2026", "夏", "")
+        val episodes = (1..5).map {
+            Episode("$it", "测试动画 [$it]", "https://anime1.me/$it", "request", "v1", "pt2")
+        }
+        val viewModel = viewModel(listOf(anime), episodes)
+
+        composeRule.setContent { AnimeMiTVTheme { AnimeMiTVApp(viewModel) } }
+
+        composeRule.onNodeWithTag("anime-card-1933").performSemanticsAction(SemanticsActions.OnClick)
+        waitForTag("episode-card-5")
+        for (id in 1..5) {
+            composeRule.onNodeWithTag("episode-card-$id").performSemanticsAction(SemanticsActions.RequestFocus)
+            composeRule.onNodeWithTag("episode-card-$id").performKeyInput { pressKey(Key.DirectionUp) }
+            composeRule.onNodeWithTag("episode-sort-button").assertIsFocused()
+        }
     }
 
     @Test
@@ -291,6 +351,7 @@ class AnimeMiTvUiTest {
         animeList: List<Anime>,
         episodes: List<Episode> = emptyList(),
         playbackReady: Boolean = true,
+        followedAnimeIds: Set<Int> = emptySet(),
     ) = AnimeViewModel(
         object : Anime1DataSource {
             override suspend fun fetchAnimeList() = animeList
@@ -301,5 +362,10 @@ class AnimeMiTvUiTest {
             }
         },
         CoroutineScope(Dispatchers.Unconfined),
+        object : FollowedAnimeStore {
+            override fun load() = followedAnimeIds
+
+            override fun save(ids: Set<Int>) = true
+        },
     )
 }

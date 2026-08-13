@@ -52,7 +52,12 @@ import kotlinx.coroutines.launch
 internal fun SeasonalListScreen(state: AppUiState, viewModel: AnimeViewModel) {
     Box(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxSize().padding(20.dp)) {
-            SideBar(viewModel::navigateToAnime, viewModel::openSeasonal, AppScreen.SeasonalList)
+            SideBar(
+                onAnime = viewModel::navigateToAnime,
+                onSeasonal = viewModel::openSeasonal,
+                onFollowed = viewModel::openFollowedAnime,
+                selected = AppScreen.SeasonalList,
+            )
             Spacer(Modifier.width(20.dp))
             Column(Modifier.fillMaxSize()) {
                 when (val discovery = state.seasonalDiscovery) {

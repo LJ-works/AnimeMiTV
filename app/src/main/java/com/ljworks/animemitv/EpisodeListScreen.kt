@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -45,21 +46,39 @@ import androidx.tv.material3.Text
 @Composable
 internal fun EpisodeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
     val anime = state.selectedAnime ?: return
+    val episodeSortRequester = remember { FocusRequester() }
     Row(modifier = Modifier.fillMaxSize().padding(20.dp)) {
         SideBar(
             onAnime = viewModel::navigateToAnime,
             onSeasonal = viewModel::openSeasonal,
-            selected = AppScreen.EpisodeList,
+            onFollowed = viewModel::openFollowedAnime,
+            selected = when (state.episodeSource) {
+                EpisodeSource.ANIME_LIST -> AppScreen.AnimeList
+                EpisodeSource.SEASONAL_LIST -> AppScreen.SeasonalList
+                EpisodeSource.FOLLOWED_ANIME_LIST -> AppScreen.FollowedAnimeList
+            },
         )
         Spacer(Modifier.width(20.dp))
         Column(modifier = Modifier.fillMaxSize()) {
-            Text(
-                anime.title,
-                modifier = Modifier.testTag("episode-title"),
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    anime.title,
+                    modifier = Modifier.testTag("episode-title"),
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Button(
+                    onClick = viewModel::toggleFollowedAnime,
+                    modifier = Modifier.testTag("follow-anime-button"),
+                ) {
+                    Text(if (anime.id in state.followedAnimeIds) "取消关注" else "关注")
+                }
+            }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -67,7 +86,12 @@ internal fun EpisodeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
             ) {
                 Text("剧集")
                 if (state.episodes is LoadState.Content) {
-                    Button(onClick = viewModel::toggleEpisodeSort) {
+                    Button(
+                        onClick = viewModel::toggleEpisodeSort,
+                        modifier = Modifier
+                            .focusRequester(episodeSortRequester)
+                            .testTag("episode-sort-button"),
+                    ) {
                         Text(if (state.episodeSort == EpisodeSort.NEWEST) "最新集优先" else "第一集优先")
                     }
                 }
@@ -75,7 +99,7 @@ internal fun EpisodeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
             when (val episodes = state.episodes) {
                 LoadState.Loading -> StatusMessage("正在加载全部剧集…")
                 is LoadState.Error -> RetryMessage(episodes.message, viewModel::retryEpisodes)
-                is LoadState.Content -> EpisodeGrid(state, episodes.value, viewModel)
+                is LoadState.Content -> EpisodeGrid(state, episodes.value, viewModel, episodeSortRequester)
                 LoadState.Idle -> Unit
             }
         }
@@ -84,7 +108,12 @@ internal fun EpisodeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun EpisodeGrid(state: AppUiState, sourceEpisodes: List<Episode>, viewModel: AnimeViewModel) {
+private fun EpisodeGrid(
+    state: AppUiState,
+    sourceEpisodes: List<Episode>,
+    viewModel: AnimeViewModel,
+    episodeSortRequester: FocusRequester,
+) {
     val episodes = if (state.episodeSort == EpisodeSort.NEWEST) sourceEpisodes else sourceEpisodes.asReversed()
     val gridState = rememberLazyGridState()
     val firstCardRequester = remember { FocusRequester() }
@@ -106,8 +135,11 @@ private fun EpisodeGrid(state: AppUiState, sourceEpisodes: List<Episode>, viewMo
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                items(episodes, key = { it.id }) { episode ->
+                itemsIndexed(episodes, key = { _, episode -> episode.id }) { index, episode ->
                     val cardModifier = Modifier
+                        .let { modifier ->
+                            if (index < 5) modifier.focusProperties { up = episodeSortRequester } else modifier
+                        }
                         .onFocusChanged { if (it.isFocused) viewModel.rememberEpisodeFocus(episode.id) }
                         .let { modifier ->
                             if (episode.id == targetEpisodeId) {

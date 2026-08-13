@@ -46,6 +46,8 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
     LaunchedEffect(Unit) {
         if (state.anime is LoadState.Loading || state.anime is LoadState.Idle) viewModel.loadAnime()
     }
+    val followed = state.screen == AppScreen.FollowedAnimeList
+    val source = if (followed) EpisodeSource.FOLLOWED_ANIME_LIST else EpisodeSource.ANIME_LIST
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -55,7 +57,12 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
             SideBar(
                 onAnime = viewModel::navigateToAnime,
                 onSeasonal = viewModel::openSeasonal,
-                selected = AppScreen.AnimeList,
+                onFollowed = viewModel::openFollowedAnime,
+                selected = if (state.screen == AppScreen.FollowedAnimeList) {
+                    AppScreen.FollowedAnimeList
+                } else {
+                    AppScreen.AnimeList
+                },
             )
         }
         Spacer(Modifier.width(20.dp))
@@ -67,12 +74,22 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
                     .testTag("anime-top-bar"),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("动画", modifier = Modifier.testTag("anime-title"), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    if (followed) "关注的动画" else "动画",
+                    modifier = Modifier.testTag(if (followed) "followed-anime-title" else "anime-title"),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
             }
             when (val anime = state.anime) {
                 LoadState.Loading -> StatusMessage("正在加载动画列表…")
                 is LoadState.Error -> RetryMessage(anime.message, viewModel::retryAnime)
-                is LoadState.Content -> AnimeGrid(anime.value, state.focusedAnimeId, viewModel)
+                is LoadState.Content -> AnimeGrid(
+                    items = if (followed) state.followedAnime else anime.value,
+                    focusedAnimeId = if (followed) state.focusedFollowedAnimeId else state.focusedAnimeId,
+                    viewModel = viewModel,
+                    source = source,
+                    emptyMessage = if (followed) "还没有关注的动画" else "没有可显示的动画",
+                )
                 LoadState.Idle -> Unit
             }
         }
@@ -81,17 +98,23 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun AnimeGrid(items: List<Anime>, focusedAnimeId: Int?, viewModel: AnimeViewModel) {
+private fun AnimeGrid(
+    items: List<Anime>,
+    focusedAnimeId: Int?,
+    viewModel: AnimeViewModel,
+    source: EpisodeSource,
+    emptyMessage: String,
+) {
     val gridState = rememberLazyGridState()
     val firstCardRequester = remember { FocusRequester() }
     val targetAnimeId = items.firstOrNull { it.id == focusedAnimeId }?.id ?: items.firstOrNull()?.id
     val targetAnimeIndex = items.indexOfFirst { it.id == targetAnimeId }
-    var focusRestored by remember(targetAnimeId) { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
+    var focusRestored by remember(targetAnimeId, source) { mutableStateOf(false) }
+    LaunchedEffect(source) {
         if (targetAnimeIndex >= 0) gridState.scrollToItem(targetAnimeIndex)
     }
     if (items.isEmpty()) {
-        StatusMessage("没有可显示的动画")
+        StatusMessage(emptyMessage)
     } else {
         LazyVerticalGrid(
             columns = GridCells.Fixed(5),
@@ -121,7 +144,7 @@ private fun AnimeGrid(items: List<Anime>, focusedAnimeId: Int?, viewModel: Anime
                 AnimeCard(
                     anime = anime,
                     modifier = cardModifier,
-                    onClick = { viewModel.openAnime(anime) },
+                    onClick = { viewModel.openAnime(anime, source) },
                 )
             }
         }

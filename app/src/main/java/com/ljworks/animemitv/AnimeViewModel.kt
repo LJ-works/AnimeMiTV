@@ -23,6 +23,7 @@ sealed interface LoadState<out T> {
 sealed interface AppScreen {
     data object AnimeList : AppScreen
     data object SeasonalList : AppScreen
+    data object FollowedAnimeList : AppScreen
     data object EpisodeList : AppScreen
     data object Player : AppScreen
 }
@@ -30,6 +31,7 @@ sealed interface AppScreen {
 enum class EpisodeSource {
     ANIME_LIST,
     SEASONAL_LIST,
+    FOLLOWED_ANIME_LIST,
 }
 
 enum class EpisodeSort {
@@ -40,7 +42,10 @@ enum class EpisodeSort {
 data class AppUiState(
     val screen: AppScreen = AppScreen.AnimeList,
     val anime: LoadState<List<Anime>> = LoadState.Loading,
+    val followedAnimeIds: Set<Int> = emptySet(),
+    val followedAnime: List<Anime> = emptyList(),
     val focusedAnimeId: Int? = null,
+    val focusedFollowedAnimeId: Int? = null,
     val seasonalDiscovery: LoadState<List<AnimeSeason>> = LoadState.Idle,
     val currentSeason: AnimeSeason? = null,
     val selectedSeason: AnimeSeason? = null,
@@ -55,13 +60,17 @@ data class AppUiState(
     val focusedEpisodeId: String? = null,
     val selectedEpisode: Episode? = null,
     val playback: LoadState<PlayableSource> = LoadState.Idle,
+    val followedAnimeSaveError: String? = null,
 )
 
 class AnimeViewModel(
     private val dataSource: Anime1DataSource,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
+    private val followedAnimeStore: FollowedAnimeStore = EmptyFollowedAnimeStore,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(AppUiState())
+    private val _uiState = MutableStateFlow(
+        AppUiState(followedAnimeIds = followedAnimeStore.load()),
+    )
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
 
     private var animeJob: Job? = null
@@ -78,7 +87,12 @@ class AnimeViewModel(
             _uiState.update { it.copy(anime = LoadState.Loading) }
             try {
                 val items = dataSource.fetchAnimeList()
-                _uiState.update { it.copy(anime = LoadState.Content(items)) }
+                _uiState.update {
+                    it.copy(
+                        anime = LoadState.Content(items),
+                        followedAnime = items.filter { anime -> anime.id in it.followedAnimeIds },
+                    )
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
@@ -88,6 +102,45 @@ class AnimeViewModel(
     }
 
     fun retryAnime() = loadAnime()
+
+    fun openFollowedAnime() {
+        if (_uiState.value.screen == AppScreen.FollowedAnimeList) return
+        seasonDiscoveryJob?.cancel()
+        seasonScheduleJob?.cancel()
+        episodeJob?.cancel()
+        playbackJob?.cancel()
+        _uiState.update { it.copy(screen = AppScreen.FollowedAnimeList, unavailableMessage = null) }
+        if (_uiState.value.anime is LoadState.Idle) loadAnime()
+    }
+
+    fun toggleFollowedAnime() {
+        val anime = _uiState.value.selectedAnime ?: return
+        val currentIds = _uiState.value.followedAnimeIds
+        val updatedIds = if (anime.id in currentIds) currentIds - anime.id else currentIds + anime.id
+        val saved = try {
+            followedAnimeStore.save(updatedIds)
+        } catch (_: Throwable) {
+            false
+        }
+        if (!saved) {
+            _uiState.update { it.copy(followedAnimeSaveError = "关注保存失败") }
+            return
+        }
+        _uiState.update {
+            it.copy(
+                followedAnimeIds = updatedIds,
+                followedAnime = when (val animeState = it.anime) {
+                    is LoadState.Content -> animeState.value.filter { item -> item.id in updatedIds }
+                    else -> it.followedAnime
+                },
+                followedAnimeSaveError = null,
+            )
+        }
+    }
+
+    fun clearFollowedAnimeSaveError() {
+        _uiState.update { it.copy(followedAnimeSaveError = null) }
+    }
 
     fun openSeasonal() {
         episodeJob?.cancel()
@@ -190,7 +243,13 @@ class AnimeViewModel(
     }
 
     fun rememberAnimeFocus(id: Int) {
-        _uiState.update { if (it.screen == AppScreen.AnimeList) it.copy(focusedAnimeId = id) else it }
+        _uiState.update {
+            when (it.screen) {
+                AppScreen.AnimeList -> it.copy(focusedAnimeId = id)
+                AppScreen.FollowedAnimeList -> it.copy(focusedFollowedAnimeId = id)
+                else -> it
+            }
+        }
     }
 
     fun rememberEpisodeFocus(id: String) {
@@ -314,10 +373,16 @@ class AnimeViewModel(
                 episodeJob?.cancel()
                 playbackJob?.cancel()
                 _uiState.update {
-                    it.copy(screen = if (it.episodeSource == EpisodeSource.SEASONAL_LIST) AppScreen.SeasonalList else AppScreen.AnimeList)
+                    it.copy(
+                        screen = when (it.episodeSource) {
+                            EpisodeSource.ANIME_LIST -> AppScreen.AnimeList
+                            EpisodeSource.SEASONAL_LIST -> AppScreen.SeasonalList
+                            EpisodeSource.FOLLOWED_ANIME_LIST -> AppScreen.FollowedAnimeList
+                        },
+                    )
                 }
             }
-            AppScreen.AnimeList, AppScreen.SeasonalList -> Unit
+            AppScreen.AnimeList, AppScreen.SeasonalList, AppScreen.FollowedAnimeList -> Unit
         }
     }
 
