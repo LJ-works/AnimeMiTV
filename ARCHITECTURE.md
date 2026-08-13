@@ -36,6 +36,7 @@ app/src/
 │   └── java/com/ljworks/animemitv/
 │       ├── MainActivity.kt
 │       ├── AnimeListScreen.kt
+│       ├── SeasonalListScreen.kt
 │       ├── EpisodeListScreen.kt
 │       ├── PlayerScreen.kt
 │       ├── SharedUi.kt
@@ -54,8 +55,9 @@ app/src/
 
 ### UI 文件
 
-- `MainActivity.kt`：创建 `AnimeViewModel` 和真实 `Anime1HttpDataSource`，并根据 `AppScreen` 在动画列表、剧集列表和播放器间切换。
+- `MainActivity.kt`：创建 `AnimeViewModel` 和真实 `Anime1HttpDataSource`，并根据 `AppScreen` 在动画列表、季度排期、剧集列表和播放器间切换。
 - `AnimeListScreen.kt`：实现动画列表、文字卡片网格和焦点恢复。
+- `SeasonalListScreen.kt`：实现季度选择器、日到六排期、无资源提示与季度焦点恢复。
 - `EpisodeListScreen.kt`：实现剧集列表、排序、文字卡片网格和焦点恢复。
 - `PlayerScreen.kt`：使用 `PlayerView` 和 ExoPlayer 自动播放视频，仅显示播放/暂停和进度条；左右键自动聚焦进度条并以 15 秒为单位预览跳转，确认后才提交；上下键保留 Media3 默认焦点导航，控制器显示时返回仅关闭控制器；播放器同时监听播放错误。
 - `SharedUi.kt`：实现左侧栏、加载状态和错误重试等共享界面。
@@ -65,13 +67,18 @@ app/src/
 定义核心数据类型：
 
 - `Anime`：动画分类及展示字段。
+- `AnimeSeason`：季度标签及 Anime1 季度页面地址。
+- `SeasonalAnime` / `AnimeSchedule`：排期动画及按日到六分组的季度排期。
 - `Episode`：剧集、文章地址和播放签名。
 - `EpisodePage`：一页剧集与下一页地址。
 - `PlayableSource`：媒体地址及请求头。
 
-同时包含三个纯解析入口：
+同时包含纯解析入口：
 
 - `parseAnimeList`：解析动画 JSON，并过滤分类 ID 为 `0` 的条目。
+- `parseCurrentSeason`：仅从 Anime1 首页 `#masthead` 识别网站声明的当前季度。
+- `precedingSeasons`：在本地生成当前季及此前连续 20 季的规则化地址。
+- `parseSeasonSchedule`：使用 Jsoup 解析季度页的日到六排期和可用分类链接。
 - `parseCategoryPage`：使用 Jsoup 从分类 HTML 提取剧集及后续分页地址。
 - `parsePlaybackResponse`：解析视频接口返回的媒体地址。
 
@@ -81,6 +88,8 @@ app/src/
 
 ```kotlin
 suspend fun fetchAnimeList(): List<Anime>
+suspend fun fetchCurrentSeason(): AnimeSeason
+suspend fun fetchSeasonSchedule(season: AnimeSeason): AnimeSchedule
 suspend fun fetchEpisodes(anime: Anime, pageUrl: String): EpisodePage
 suspend fun resolvePlayback(anime: Anime, episode: Episode): PlayableSource
 ```
@@ -97,15 +106,15 @@ suspend fun resolvePlayback(anime: Anime, episode: Episode): PlayableSource
 
 `AnimeViewModel` 是唯一应用状态持有者，`AppUiState` 包含：
 
-- 当前页面 `AnimeList / EpisodeList / Player`。
-- 动画、剧集和播放的加载状态。
-- 完整动画列表、已加载剧集及下一页 URL。
+- 当前页面 `AnimeList / SeasonalList / EpisodeList / Player`。
+- 动画、季度发现/排期、剧集和播放的加载状态。
+- 完整动画列表、当前/选中季度、进程内季度排期缓存及已加载剧集。
 - 剧集排序方式。
-- 当前动画、剧集和焦点 ID。
+- 动画、季度排期和剧集的独立焦点恢复状态。
 
-所有用户行为通过 ViewModel 方法进入，例如选择动画、切换排序、加载更多、播放、重试和返回。Compose 只渲染状态并转发事件。
+所有用户行为通过 ViewModel 方法进入，例如选择动画或季度、切换排序、播放、重试和返回。Compose 只渲染状态并转发事件。
 
-每类异步请求都持有 Job。打开新动画、播放新剧集或离开页面时取消旧 Job；请求完成后还会核对当前页面、动画 ID、剧集 ID 和分页 URL，旧结果不能写入新页面。
+每类异步请求都持有 Job。打开新动画、播放新剧集或切换顶层栏目时取消旧 Job；请求完成后还会核对当前页面、季度、动画和剧集 ID，旧结果不能写入新页面。
 
 ## 4. 核心数据流
 
@@ -122,6 +131,20 @@ suspend fun resolvePlayback(anime: Anime, episode: Episode): PlayableSource
 ```
 
 整个动画 JSON 只请求一次；列表由 Compose 惰性组合可见区域附近的卡片，向下滚动不会再次访问网络。
+
+### 季度排期
+
+```text
+进入季度新番
+  → GET /，从 #masthead 发现当前季
+  → 本地生成当前季及此前 20 季
+  → GET 已选季度页面
+  → parseSeasonSchedule
+  → AppUiState.seasonalSchedule = Content
+  → Compose 以日到六七列展示排期
+```
+
+仅请求当前选中的季度；成功排期按季度标签缓存在进程内，失败不缓存。没有 Anime1 分类链接的条目保持可聚焦，但只显示短暂“暂无资源”提示。
 
 ### 剧集列表
 
@@ -154,15 +177,18 @@ suspend fun resolvePlayback(anime: Anime, episode: Episode): PlayableSource
 应用没有引入 Navigation Compose，而是通过 `AppScreen` 切换三个页面：
 
 ```text
-AnimeList → EpisodeList → Player
-    ↑            ↑           │
-    └────────────┴───────────┘ Back
+AnimeList ─┐
+            ├→ EpisodeList → Player
+SeasonalList ┘       ↑           │
+     ↑               └───────────┘ Back
+     └─────────────────────────────┘
 ```
 
 焦点策略：
 
-- ViewModel 保存原动画/剧集 ID；动画网格通过 `LazyGridState.scrollToItem` 先滚动到目标，再在目标卡片完成布局后请求焦点。
-- 从剧集页返回时恢复原动画及卡片焦点。
+- ViewModel 保存原动画、季度排期和剧集 ID；动画网格通过 `LazyGridState.scrollToItem` 先滚动到目标，再在目标卡片完成布局后请求焦点。
+- 季度页初始聚焦第一张排期卡片；第一排按上进入季度选择器，选择器按下回到排期。季度按钮获得焦点时会横向滚动到可见区域。
+- 从剧集页返回时按来源恢复动画列表或原季度、排期位置及卡片焦点。
 - 从播放器返回时恢复原剧集。
 - 动画列表滚动到完整数据集末尾后结束；剧集列表仍使用分页哨兵加载更早剧集。
 
@@ -186,18 +212,18 @@ Idle → Loading → Content
 
 ### JVM 单元测试
 
-- JSON、HTML 与播放响应解析。
+- JSON、季度/分类 HTML 与播放响应解析。
 - 成人外站条目过滤。
 - 视频请求的 Origin、Referer、表单内容和 Cookie 传递。
-- ViewModel 的加载、剧集分页、剧集排序、播放错误、请求取消和旧结果保护状态。
+- ViewModel 的动画和季度加载、季度缓存/重试、剧集排序、播放错误、请求取消和旧结果保护状态。
 - 播放重试找不到原剧集时不会调用旧签名。
 
 测试使用固定 fixture，不依赖 Anime1 在线服务。
 
 ### Compose 设备测试
 
-- 左侧栏和文字卡片展示。
-- 完整动画列表展示及焦点恢复。
+- 左侧栏、季度选择器和文字卡片展示。
+- 完整动画列表与季度排期展示及独立焦点恢复。
 - 动画列表进入剧集页。
 - 播放错误页的“重试/返回”操作。
 - 播放页面的播放/暂停、进度条跳转和非可见卡片的滚动/焦点恢复。
