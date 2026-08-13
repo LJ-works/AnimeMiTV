@@ -18,11 +18,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -42,6 +45,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import java.time.DayOfWeek
 import java.time.LocalDate
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -77,6 +81,8 @@ internal fun SeasonalListScreen(state: AppUiState, viewModel: AnimeViewModel) {
 private fun SeasonalContent(state: AppUiState, seasons: List<AnimeSeason>, viewModel: AnimeViewModel) {
     val seasonScroll = rememberScrollState()
     val selectedSeasonRequester = remember { FocusRequester() }
+    val firstCardRequester = remember { FocusRequester() }
+    val seasonScope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().horizontalScroll(seasonScroll).testTag("season-selector"),
@@ -85,9 +91,17 @@ private fun SeasonalContent(state: AppUiState, seasons: List<AnimeSeason>, viewM
             Spacer(Modifier.width(12.dp))
             seasons.forEach { season ->
                 val selected = state.selectedSeason == season
+                val bringIntoViewRequester = remember { BringIntoViewRequester() }
                 Button(
                     onClick = { viewModel.selectSeason(season) },
                     modifier = Modifier
+                        .bringIntoViewRequester(bringIntoViewRequester)
+                        .onFocusChanged {
+                            if (it.isFocused) {
+                                seasonScope.launch { bringIntoViewRequester.bringIntoView() }
+                            }
+                        }
+                        .focusProperties { down = firstCardRequester }
                         .testTag("season-${season.label}")
                         .then(if (selected) Modifier.focusRequester(selectedSeasonRequester) else Modifier),
                     colors = if (selected) {
@@ -112,6 +126,7 @@ private fun SeasonalContent(state: AppUiState, seasons: List<AnimeSeason>, viewM
                 schedule.value,
                 selectedSeasonRequester,
                 viewModel,
+                firstCardRequester,
                 Modifier.weight(1f),
             )
         }
@@ -125,15 +140,16 @@ private fun ScheduleGrid(
     schedule: AnimeSchedule,
     selectedSeasonRequester: FocusRequester,
     viewModel: AnimeViewModel,
+    firstCardRequester: FocusRequester,
     modifier: Modifier,
 ) {
     val rows = (0 until (schedule.days.maxOfOrNull { it.size } ?: 0)).toList()
     val first = schedule.days.flatten().firstOrNull()?.id
-    val firstRequester = remember { FocusRequester() }
+    val target = state.focusedSeasonalAnimeId ?: first
     val listState = rememberLazyListState(state.seasonalScrollIndex + 1)
     LaunchedEffect(state.selectedSeason, state.seasonalSchedule) {
-        if (state.seasonalScrollIndex > 0) listState.scrollToItem(state.seasonalScrollIndex + 1)
-        if (first != null && state.focusedSeasonalAnimeId == null) firstRequester.requestFocus()
+        listState.scrollToItem((state.seasonalScrollIndex - 2).coerceAtLeast(0) + 1)
+        if (target != null) firstCardRequester.requestFocus()
     }
     LazyColumn(
         modifier = modifier.fillMaxWidth().testTag("seasonal-schedule"),
@@ -160,7 +176,7 @@ private fun ScheduleGrid(
                     else SeasonalCard(
                         anime,
                         rowIndex,
-                        if (anime.id == first) firstRequester else null,
+                        if (anime.id == target) firstCardRequester else null,
                         if (rowIndex == 0) selectedSeasonRequester else null,
                         Modifier.weight(1f),
                         viewModel,
