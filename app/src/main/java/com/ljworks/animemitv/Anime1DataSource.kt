@@ -9,6 +9,8 @@ import java.net.URL
 
 interface Anime1DataSource {
     suspend fun fetchAnimeList(): List<Anime>
+    suspend fun fetchCurrentSeason(): AnimeSeason = error("当前数据源不支持季度新番")
+    suspend fun fetchSeasonSchedule(season: AnimeSeason): AnimeSchedule = error("当前数据源不支持季度新番")
     suspend fun fetchEpisodes(anime: Anime, pageUrl: String = anime.categoryUrl): EpisodePage
     suspend fun resolvePlayback(anime: Anime, episode: Episode): PlayableSource
 }
@@ -20,6 +22,14 @@ class Anime1HttpDataSource(
 
     override suspend fun fetchAnimeList(): List<Anime> = withContext(Dispatchers.IO) {
         parseAnimeList(get("https://anime1.me/animelist.json", "https://anime1.me/"))
+    }
+
+    override suspend fun fetchCurrentSeason(): AnimeSeason = withContext(Dispatchers.IO) {
+        parseCurrentSeason(get("https://anime1.me/", "https://anime1.me/"))
+    }
+
+    override suspend fun fetchSeasonSchedule(season: AnimeSeason): AnimeSchedule = withContext(Dispatchers.IO) {
+        parseSeasonSchedule(get(season.url, "https://anime1.me/"), season.url)
     }
 
     override suspend fun fetchEpisodes(anime: Anime, pageUrl: String): EpisodePage = withContext(Dispatchers.IO) {

@@ -12,6 +12,62 @@ class AnimeViewModelTest {
     private val episode = Episode("1", "相反的你和我 第二季 [01]", "https://anime1.me/1", "request", "v1", "pt2")
 
     @Test
+    fun openingSeasonalDiscoversTwentyOneSeasonsAndLoadsOnlyTheSelectedSchedule() {
+        val source = SeasonalFake()
+        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+
+        viewModel.openSeasonal()
+
+        assertEquals(AppScreen.SeasonalList, viewModel.uiState.value.screen)
+        assertEquals(21, (viewModel.uiState.value.seasonalDiscovery as LoadState.Content).value.size)
+        assertEquals(1, source.scheduleCalls)
+        assertEquals("2026年夏季新番", source.requestedSeasons.single().label)
+    }
+
+    @Test
+    fun successfulSeasonalScheduleIsCachedButFailureCanBeRetried() {
+        val source = SeasonalFake(failFirstSchedule = true)
+        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+
+        viewModel.openSeasonal()
+        assertTrue(viewModel.uiState.value.seasonalSchedule is LoadState.Error)
+
+        viewModel.retrySeasonal()
+        assertTrue(viewModel.uiState.value.seasonalSchedule is LoadState.Content)
+        viewModel.openSeasonal()
+        assertEquals(2, source.scheduleCalls)
+    }
+
+    @Test
+    fun seasonalAvailableAnimeUsesCategoryLinkAndBackReturnsToSchedule() {
+        val source = SeasonalFake()
+        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+        viewModel.openSeasonal()
+        val seasonalAnime = (viewModel.uiState.value.seasonalSchedule as LoadState.Content).value.days[0].single()
+
+        viewModel.confirmSeasonalAnime(seasonalAnime)
+
+        assertEquals(AppScreen.EpisodeList, viewModel.uiState.value.screen)
+        assertEquals(1940, viewModel.uiState.value.selectedAnime?.id)
+        assertEquals(EpisodeSource.SEASONAL_LIST, viewModel.uiState.value.episodeSource)
+        viewModel.back()
+        assertEquals(AppScreen.SeasonalList, viewModel.uiState.value.screen)
+    }
+
+    @Test
+    fun seasonalUnavailableAnimeDoesNotNavigate() {
+        val source = SeasonalFake()
+        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+        viewModel.openSeasonal()
+        val unavailable = (viewModel.uiState.value.seasonalSchedule as LoadState.Content).value.days[1].single()
+
+        viewModel.confirmSeasonalAnime(unavailable)
+
+        assertEquals(AppScreen.SeasonalList, viewModel.uiState.value.screen)
+        assertEquals("暂无资源", viewModel.uiState.value.unavailableMessage)
+    }
+
+    @Test
     fun loadingAnimeExposesTheCompleteList() {
         val animeList = (1..21).map { anime.copy(id = it) }
         val viewModel = AnimeViewModel(FakeDataSource(animeList = animeList), CoroutineScope(Dispatchers.Unconfined))
@@ -161,6 +217,38 @@ class AnimeViewModelTest {
             resolvedEpisodes += episode
             return PlayableSource("https://video.example/episode.mp4")
         }
+    }
+
+    private class SeasonalFake(
+        private val failFirstSchedule: Boolean = false,
+    ) : Anime1DataSource {
+        var scheduleCalls = 0
+        val requestedSeasons = mutableListOf<AnimeSeason>()
+
+        override suspend fun fetchAnimeList() = emptyList<Anime>()
+
+        override suspend fun fetchCurrentSeason() = AnimeSeason(
+            "2026年夏季新番",
+            "https://anime1.me/2026年夏季新番",
+        )
+
+        override suspend fun fetchSeasonSchedule(season: AnimeSeason): AnimeSchedule {
+            scheduleCalls++
+            requestedSeasons += season
+            if (failFirstSchedule && scheduleCalls == 1) error("季度排期失败")
+            return AnimeSchedule(
+                listOf(
+                    listOf(SeasonalAnime("available", "有资源", "https://anime1.me/?cat=1940")),
+                    listOf(SeasonalAnime("missing", "无资源", null)),
+                    emptyList(), emptyList(), emptyList(), emptyList(), emptyList(),
+                ),
+            )
+        }
+
+        override suspend fun fetchEpisodes(anime: Anime, pageUrl: String) = EpisodePage(emptyList(), null)
+
+        override suspend fun resolvePlayback(anime: Anime, episode: Episode) =
+            PlayableSource("https://video.example/episode.mp4")
     }
 
     private class DeferredDataSource : Anime1DataSource {

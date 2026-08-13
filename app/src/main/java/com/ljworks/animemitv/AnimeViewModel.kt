@@ -22,8 +22,14 @@ sealed interface LoadState<out T> {
 
 sealed interface AppScreen {
     data object AnimeList : AppScreen
+    data object SeasonalList : AppScreen
     data object EpisodeList : AppScreen
     data object Player : AppScreen
+}
+
+enum class EpisodeSource {
+    ANIME_LIST,
+    SEASONAL_LIST,
 }
 
 enum class EpisodeSort {
@@ -35,7 +41,15 @@ data class AppUiState(
     val screen: AppScreen = AppScreen.AnimeList,
     val anime: LoadState<List<Anime>> = LoadState.Loading,
     val focusedAnimeId: Int? = null,
+    val seasonalDiscovery: LoadState<List<AnimeSeason>> = LoadState.Idle,
+    val currentSeason: AnimeSeason? = null,
+    val selectedSeason: AnimeSeason? = null,
+    val seasonalSchedule: LoadState<AnimeSchedule> = LoadState.Idle,
+    val focusedSeasonalAnimeId: String? = null,
+    val seasonalScrollIndex: Int = 0,
+    val unavailableMessage: String? = null,
     val selectedAnime: Anime? = null,
+    val episodeSource: EpisodeSource = EpisodeSource.ANIME_LIST,
     val episodes: LoadState<List<Episode>> = LoadState.Idle,
     val episodeSort: EpisodeSort = EpisodeSort.NEWEST,
     val focusedEpisodeId: String? = null,
@@ -51,8 +65,12 @@ class AnimeViewModel(
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
 
     private var animeJob: Job? = null
+    private var seasonDiscoveryJob: Job? = null
+    private var seasonScheduleJob: Job? = null
     private var episodeJob: Job? = null
     private var playbackJob: Job? = null
+    private var unavailableJob: Job? = null
+    private val seasonalCache = mutableMapOf<String, AnimeSchedule>()
 
     fun loadAnime() {
         animeJob?.cancel()
@@ -71,6 +89,106 @@ class AnimeViewModel(
 
     fun retryAnime() = loadAnime()
 
+    fun openSeasonal() {
+        episodeJob?.cancel()
+        playbackJob?.cancel()
+        _uiState.update { it.copy(screen = AppScreen.SeasonalList, unavailableMessage = null) }
+        if (_uiState.value.seasonalDiscovery is LoadState.Content) {
+            _uiState.value.selectedSeason?.let(::loadSeason)
+            return
+        }
+        seasonDiscoveryJob?.cancel()
+        seasonDiscoveryJob = scope.launch {
+            _uiState.update { it.copy(seasonalDiscovery = LoadState.Loading, seasonalSchedule = LoadState.Loading) }
+            try {
+                val current = dataSource.fetchCurrentSeason()
+                val seasons = precedingSeasons(current)
+                if (_uiState.value.screen != AppScreen.SeasonalList) return@launch
+                _uiState.update {
+                    it.copy(
+                        seasonalDiscovery = LoadState.Content(seasons),
+                        currentSeason = current,
+                        selectedSeason = seasons.first(),
+                    )
+                }
+                loadSeason(seasons.first())
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                if (_uiState.value.screen == AppScreen.SeasonalList) {
+                    _uiState.update {
+                        it.copy(
+                            seasonalDiscovery = LoadState.Error(error.message ?: "当前季度发现失败"),
+                            seasonalSchedule = LoadState.Idle,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun retrySeasonal() = openSeasonal()
+
+    fun selectSeason(season: AnimeSeason) {
+        if (_uiState.value.seasonalDiscovery !is LoadState.Content) return
+        _uiState.update { it.copy(selectedSeason = season, focusedSeasonalAnimeId = null, seasonalScrollIndex = 0) }
+        loadSeason(season)
+    }
+
+    private fun loadSeason(season: AnimeSeason) {
+        seasonScheduleJob?.cancel()
+        seasonalCache[season.label]?.let { schedule ->
+            _uiState.update { it.copy(seasonalSchedule = LoadState.Content(schedule)) }
+            return
+        }
+        seasonScheduleJob = scope.launch {
+            _uiState.update { it.copy(seasonalSchedule = LoadState.Loading) }
+            try {
+                val schedule = dataSource.fetchSeasonSchedule(season)
+                if (_uiState.value.screen != AppScreen.SeasonalList || _uiState.value.selectedSeason != season) return@launch
+                seasonalCache[season.label] = schedule
+                _uiState.update { it.copy(seasonalSchedule = LoadState.Content(schedule)) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                if (_uiState.value.screen == AppScreen.SeasonalList && _uiState.value.selectedSeason == season) {
+                    _uiState.update { it.copy(seasonalSchedule = LoadState.Error(error.message ?: "季度排期加载失败")) }
+                }
+            }
+        }
+    }
+
+    fun rememberSeasonalFocus(id: String, rowIndex: Int) {
+        _uiState.update {
+            if (it.screen == AppScreen.SeasonalList) it.copy(focusedSeasonalAnimeId = id, seasonalScrollIndex = rowIndex) else it
+        }
+    }
+
+    fun confirmSeasonalAnime(anime: SeasonalAnime) {
+        if (anime.categoryUrl == null) {
+            unavailableJob?.cancel()
+            unavailableJob = scope.launch {
+                _uiState.update { it.copy(unavailableMessage = "暂无资源") }
+                kotlinx.coroutines.delay(2_000)
+                _uiState.update { it.copy(unavailableMessage = null) }
+            }
+            return
+        }
+        val id = Regex("[?&]cat=(\\d+)").find(anime.categoryUrl)?.groupValues?.get(1)?.toIntOrNull() ?: return
+        openAnime(
+            Anime(id, anime.title, "", "", "", "", anime.categoryUrl),
+            EpisodeSource.SEASONAL_LIST,
+        )
+    }
+
+    fun navigateToAnime() {
+        seasonDiscoveryJob?.cancel()
+        seasonScheduleJob?.cancel()
+        episodeJob?.cancel()
+        playbackJob?.cancel()
+        _uiState.update { it.copy(screen = AppScreen.AnimeList, unavailableMessage = null) }
+    }
+
     fun rememberAnimeFocus(id: Int) {
         _uiState.update { if (it.screen == AppScreen.AnimeList) it.copy(focusedAnimeId = id) else it }
     }
@@ -79,13 +197,14 @@ class AnimeViewModel(
         _uiState.update { if (it.screen == AppScreen.EpisodeList) it.copy(focusedEpisodeId = id) else it }
     }
 
-    fun openAnime(anime: Anime) {
+    fun openAnime(anime: Anime, source: EpisodeSource = EpisodeSource.ANIME_LIST) {
         episodeJob?.cancel()
         playbackJob?.cancel()
         _uiState.update {
             it.copy(
                 screen = AppScreen.EpisodeList,
                 selectedAnime = anime,
+                episodeSource = source,
                 episodes = LoadState.Loading,
                 episodeSort = EpisodeSort.NEWEST,
                 focusedEpisodeId = null,
@@ -109,7 +228,8 @@ class AnimeViewModel(
     }
 
     fun retryEpisodes() {
-        _uiState.value.selectedAnime?.let(::openAnime)
+        val state = _uiState.value
+        state.selectedAnime?.let { openAnime(it, state.episodeSource) }
     }
 
     fun toggleEpisodeSort() {
@@ -193,9 +313,11 @@ class AnimeViewModel(
             AppScreen.EpisodeList -> {
                 episodeJob?.cancel()
                 playbackJob?.cancel()
-                _uiState.update { it.copy(screen = AppScreen.AnimeList) }
+                _uiState.update {
+                    it.copy(screen = if (it.episodeSource == EpisodeSource.SEASONAL_LIST) AppScreen.SeasonalList else AppScreen.AnimeList)
+                }
             }
-            AppScreen.AnimeList -> Unit
+            AppScreen.AnimeList, AppScreen.SeasonalList -> Unit
         }
     }
 
@@ -223,6 +345,9 @@ class AnimeViewModel(
     override fun onCleared() {
         animeJob?.cancel()
         episodeJob?.cancel()
+        seasonDiscoveryJob?.cancel()
+        seasonScheduleJob?.cancel()
+        unavailableJob?.cancel()
         playbackJob?.cancel()
         scope.cancel()
         super.onCleared()
