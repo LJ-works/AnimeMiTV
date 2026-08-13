@@ -46,7 +46,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 internal fun AnimeMiTVApp(viewModel: AnimeViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    if (state.screen == AppScreen.EpisodeList) BackHandler { viewModel.back() }
+    if (state.screen != AppScreen.AnimeList && state.screen != AppScreen.SeasonalList) BackHandler { viewModel.back() }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -57,6 +57,7 @@ internal fun AnimeMiTVApp(viewModel: AnimeViewModel) {
         ) {
             when (state.screen) {
                 AppScreen.AnimeList -> AnimeListScreen(state, viewModel)
+                AppScreen.SeasonalList -> SeasonalListScreen(state, viewModel)
                 AppScreen.EpisodeList -> EpisodeListScreen(state, viewModel)
                 AppScreen.Player -> PlayerScreen(state, viewModel)
             }

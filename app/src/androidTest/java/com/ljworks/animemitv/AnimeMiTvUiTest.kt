@@ -56,6 +56,59 @@ class AnimeMiTvUiTest {
     }
 
     @Test
+    fun seasonalCardUpFocusesSelectedSeason() {
+        val selectedSeason = AnimeSeason("2026年夏季新番", "https://anime1.me/2026-summer")
+        val schedule = AnimeSchedule(
+            listOf(
+                emptyList(), emptyList(), emptyList(), emptyList(), emptyList(),
+                listOf(SeasonalAnime("target", "测试新番", "https://anime1.me/?cat=1")),
+                emptyList(),
+            ),
+        )
+        val state = AppUiState(
+            screen = AppScreen.SeasonalList,
+            seasonalDiscovery = LoadState.Content(listOf(selectedSeason)),
+            currentSeason = selectedSeason,
+            selectedSeason = selectedSeason,
+            seasonalSchedule = LoadState.Content(schedule),
+        )
+
+        composeRule.setContent { AnimeMiTVTheme { SeasonalListScreen(state, viewModel(emptyList())) } }
+        composeRule.onNodeWithTag("seasonal-card-target").performSemanticsAction(SemanticsActions.RequestFocus)
+        composeRule.onNodeWithTag("seasonal-card-target").performKeyInput { pressKey(Key.DirectionUp) }
+
+        composeRule.onNodeWithTag("season-2026年夏季新番").assertIsFocused()
+    }
+
+    @Test
+    fun lowerSeasonalCardUpFocusesCardAbove() {
+        val selectedSeason = AnimeSeason("2026年夏季新番", "https://anime1.me/2026-summer")
+        val schedule = AnimeSchedule(
+            listOf(
+                emptyList(), emptyList(), emptyList(), emptyList(), emptyList(),
+                listOf(
+                    SeasonalAnime("above", "上一排", "https://anime1.me/?cat=1"),
+                    SeasonalAnime("below", "下一排", "https://anime1.me/?cat=2"),
+                ),
+                emptyList(),
+            ),
+        )
+        val state = AppUiState(
+            screen = AppScreen.SeasonalList,
+            seasonalDiscovery = LoadState.Content(listOf(selectedSeason)),
+            currentSeason = selectedSeason,
+            selectedSeason = selectedSeason,
+            seasonalSchedule = LoadState.Content(schedule),
+        )
+
+        composeRule.setContent { AnimeMiTVTheme { SeasonalListScreen(state, viewModel(emptyList())) } }
+        composeRule.onNodeWithTag("seasonal-card-below").performSemanticsAction(SemanticsActions.RequestFocus)
+        composeRule.onNodeWithTag("seasonal-card-below").performKeyInput { pressKey(Key.DirectionUp) }
+
+        composeRule.onNodeWithTag("seasonal-card-above").assertIsFocused()
+    }
+
+    @Test
     fun playbackErrorShowsRetryAndBack() {
         val anime = Anime(1933, "测试动画", "連載中(01)", "2026", "夏", "")
         val episode = Episode("1", "测试动画 [01]", "https://anime1.me/1", "request", "v1", "pt2")

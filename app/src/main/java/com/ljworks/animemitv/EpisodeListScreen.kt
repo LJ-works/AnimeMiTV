@@ -46,7 +46,11 @@ import androidx.tv.material3.Text
 internal fun EpisodeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
     val anime = state.selectedAnime ?: return
     Row(modifier = Modifier.fillMaxSize().padding(20.dp)) {
-        SideBar()
+        SideBar(
+            onAnime = viewModel::navigateToAnime,
+            onSeasonal = viewModel::openSeasonal,
+            selected = AppScreen.EpisodeList,
+        )
         Spacer(Modifier.width(20.dp))
         Column(modifier = Modifier.fillMaxSize()) {
             Text(

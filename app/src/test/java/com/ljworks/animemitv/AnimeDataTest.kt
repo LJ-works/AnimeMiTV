@@ -38,6 +38,37 @@ class AnimeDataTest {
     }
 
     @Test
+    fun parsesCurrentSeasonAndSevenDayScheduleIncludingUnavailableEntries() {
+        val home = """
+            <a href="https://anime1.me/2026%e5%b9%b4%e5%a4%8f%e5%ad%a3%e6%96%b0%e7%95%aa">2026年夏季新番</a>
+        """.trimIndent()
+        val season = """
+            <table><thead><tr><th>日</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th></tr></thead>
+            <tbody><tr>
+                <td>无资源动画</td><td><a href="/?cat=1933">有资源动画</a></td><td></td><td></td><td></td><td></td><td></td>
+            </tr></tbody></table>
+        """.trimIndent()
+
+        assertEquals("2026年夏季新番", parseCurrentSeason(home).label)
+        val schedule = parseSeasonSchedule(season, "https://anime1.me/season")
+        assertEquals(7, schedule.days.size)
+        assertEquals("无资源动画", schedule.days[0].single().title)
+        assertEquals(null, schedule.days[0].single().categoryUrl)
+        assertEquals("有资源动画", schedule.days[1].single().title)
+        assertEquals("https://anime1.me/?cat=1933", schedule.days[1].single().categoryUrl)
+    }
+
+    @Test
+    fun generatesCurrentAndTwentyPreviousSeasonsInNewestFirstOrder() {
+        val seasons = precedingSeasons(AnimeSeason("2026年冬季新番", "https://anime1.me/current"))
+
+        assertEquals(21, seasons.size)
+        assertEquals("2026年冬季新番", seasons.first().label)
+        assertEquals("2025年秋季新番", seasons[1].label)
+        assertEquals("2021年冬季新番", seasons.last().label)
+    }
+
+    @Test
     fun playbackRequestCarriesOriginRefererAndResponseCookies() {
         lateinit var connection: FakeHttpURLConnection
         val dataSource = Anime1HttpDataSource { url ->

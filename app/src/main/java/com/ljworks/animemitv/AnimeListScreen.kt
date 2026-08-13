@@ -52,7 +52,11 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
             .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
     ) {
         Column(modifier = Modifier.padding(top = 20.dp)) {
-            SideBar()
+            SideBar(
+                onAnime = viewModel::navigateToAnime,
+                onSeasonal = viewModel::openSeasonal,
+                selected = AppScreen.AnimeList,
+            )
         }
         Spacer(Modifier.width(20.dp))
         Column(modifier = Modifier.fillMaxSize()) {

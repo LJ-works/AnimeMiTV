@@ -20,15 +20,31 @@ import androidx.tv.material3.Text
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-internal fun SideBar() {
+internal fun SideBar(
+    onAnime: () -> Unit,
+    onSeasonal: () -> Unit,
+    selected: AppScreen,
+) {
     Column(
         modifier = Modifier.width(90.dp).fillMaxHeight().testTag("sidebar"),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text("AnimeMiTV", style = MaterialTheme.typography.bodyMedium, maxLines = 1)
         Spacer(Modifier.height(12.dp))
-        Button(onClick = {}, modifier = Modifier.testTag("sidebar-animation")) {
+        Button(
+            onClick = onAnime,
+            modifier = Modifier.testTag("sidebar-animation"),
+            enabled = selected != AppScreen.AnimeList,
+        ) {
             Text("动画", style = MaterialTheme.typography.bodyMedium)
+        }
+        Spacer(Modifier.height(12.dp))
+        Button(
+            onClick = onSeasonal,
+            modifier = Modifier.testTag("sidebar-seasonal"),
+            enabled = selected != AppScreen.SeasonalList,
+        ) {
+            Text("季度新番", style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
