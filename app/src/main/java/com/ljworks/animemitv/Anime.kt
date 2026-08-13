@@ -132,10 +132,16 @@ fun precedingSeasons(current: AnimeSeason): List<AnimeSeason> {
     var year = match.group(1).orEmpty().toInt()
     var seasonIndex = listOf("冬", "春", "夏", "秋").indexOf(match.group(2).orEmpty())
     return buildList {
-        repeat(21) {
+        repeat(21) { index ->
             val season = listOf("冬", "春", "夏", "秋")[seasonIndex]
             val label = "${year}年${season}季新番"
-            add(AnimeSeason(label, "https://anime1.me/${URLEncoder.encode(label, StandardCharsets.UTF_8.name()).replace("+", "%20")}"))
+            add(
+                if (index == 0) current
+                else AnimeSeason(
+                    label,
+                    "https://anime1.me/${URLEncoder.encode(label, StandardCharsets.UTF_8.name()).replace("+", "%20")}",
+                )
+            )
             if (--seasonIndex < 0) {
                 seasonIndex = 3
                 year--
