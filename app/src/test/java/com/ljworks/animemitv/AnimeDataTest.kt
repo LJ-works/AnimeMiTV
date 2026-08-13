@@ -69,6 +69,15 @@ class AnimeDataTest {
     }
 
     @Test
+    fun seasonDiscoveryPreservesDiscoveredCurrentSeasonUrl() {
+        val current = AnimeSeason("2026年夏季新番", "https://anime1.me/current-season")
+
+        val seasons = precedingSeasons(current)
+
+        assertEquals(current, seasons.first())
+    }
+
+    @Test
     fun playbackRequestCarriesOriginRefererAndResponseCookies() {
         lateinit var connection: FakeHttpURLConnection
         val dataSource = Anime1HttpDataSource { url ->
