@@ -87,6 +87,7 @@ private fun VideoPlayer(
         var resumePlaybackOnStart = false
         val listener = object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
+                resumePlaybackOnStart = false
                 onError(episodeId, error.message ?: "视频播放失败")
             }
         }
