@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/LJ-works/AnimeMiTV/compare/v1.5.0...v1.5.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* **player:** pause playback when app goes to background ([#45](https://github.com/LJ-works/AnimeMiTV/issues/45)) ([5e63703](https://github.com/LJ-works/AnimeMiTV/commit/5e637031969b585e78ecd3a70bf8beadfeb4886e))
+
 ## [1.5.0](https://github.com/LJ-works/AnimeMiTV/compare/v1.4.0...v1.5.0) (2026-08-14)
 
 
