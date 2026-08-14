@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/LJ-works/AnimeMiTV/compare/v1.4.0...v1.5.0) (2026-08-14)
+
+
+### Features
+
+* use Anime1 branding for launcher and TV banner ([#42](https://github.com/LJ-works/AnimeMiTV/issues/42)) ([55a2c3a](https://github.com/LJ-works/AnimeMiTV/commit/55a2c3a8305f5b5021cb08a8f819dfe9c5649e45)), closes [#41](https://github.com/LJ-works/AnimeMiTV/issues/41)
+
 ## [1.4.0](https://github.com/LJ-works/AnimeMiTV/compare/v1.3.0...v1.4.0) (2026-08-13)
 
 
