@@ -17,6 +17,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -72,6 +75,7 @@ private fun VideoPlayer(
     onError: (String, String) -> Unit,
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var controllerVisible by remember { mutableStateOf(false) }
     var hideController by remember { mutableStateOf<(() -> Unit)?>(null) }
     BackHandler(controllerVisible) { hideController?.invoke() }
@@ -79,14 +83,33 @@ private fun VideoPlayer(
         val dataSourceFactory = DefaultHttpDataSource.Factory().setDefaultRequestProperties(source.headers)
         ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory)).build()
     }
-    DisposableEffect(player, episodeId) {
+    DisposableEffect(player, lifecycleOwner, episodeId) {
+        var resumePlaybackOnStart = false
         val listener = object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
+                resumePlaybackOnStart = false
                 onError(episodeId, error.message ?: "视频播放失败")
             }
         }
+        val lifecycleObserver = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> {
+                    resumePlaybackOnStart = player.playWhenReady
+                    player.pause()
+                }
+                Lifecycle.Event.ON_START -> {
+                    if (resumePlaybackOnStart) {
+                        resumePlaybackOnStart = false
+                        player.play()
+                    }
+                }
+                else -> Unit
+            }
+        }
         player.addListener(listener)
+        lifecycleOwner.lifecycle.addObserver(lifecycleObserver)
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
             player.removeListener(listener)
             player.release()
         }
