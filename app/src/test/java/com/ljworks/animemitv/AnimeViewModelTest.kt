@@ -254,6 +254,47 @@ class AnimeViewModelTest {
     }
 
     @Test
+    fun animeSearchContextSurvivesOpeningAnimeAndBackWithoutReloadingList() {
+        val source = FakeDataSource(animeList = listOf(anime))
+        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+
+        viewModel.loadAnime()
+        viewModel.openAnimeSearch()
+        viewModel.updateAnimeSearchQuery("相反")
+        viewModel.rememberAnimeFocus(anime.id)
+        viewModel.openAnime(anime)
+        viewModel.back()
+
+        val state = viewModel.uiState.value
+        assertEquals(AppScreen.AnimeList, state.screen)
+        assertTrue(state.isAnimeSearchActive)
+        assertEquals("相反", state.animeSearchQuery)
+        assertEquals(anime.id, state.focusedAnimeId)
+        assertTrue(state.restoreAnimeSearchFocus)
+        assertEquals(1, source.fetchAnimeListCalls)
+    }
+
+    @Test
+    fun animeSearchContextKeepsUnavailableFocusForUiFallback() {
+        val first = anime.copy(id = 1, title = "第一部")
+        val second = anime.copy(id = 2, title = "第二部")
+        val viewModel = AnimeViewModel(
+            FakeDataSource(animeList = listOf(first, second)),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        viewModel.loadAnime()
+        viewModel.openAnimeSearch()
+        viewModel.updateAnimeSearchQuery("不存在")
+        viewModel.openAnime(first)
+        viewModel.back()
+
+        assertTrue(viewModel.uiState.value.isAnimeSearchActive)
+        assertTrue(viewModel.uiState.value.restoreAnimeSearchFocus)
+        assertEquals("不存在", viewModel.uiState.value.animeSearchQuery)
+    }
+
+    @Test
     fun openingAnimeLoadsAllEpisodePagesBeforeShowingContent() {
         val secondEpisode = episode.copy(id = "2", title = "相反的你和我 第二季 [02]")
         val dataSource = FakeDataSource(
