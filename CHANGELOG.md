@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.7.1](https://github.com/LJ-works/AnimeMiTV/compare/v1.7.0...v1.7.1) (2026-08-15)
+
+
+### Bug Fixes
+
+* 修复剧集卡片标题显示行数 ([#69](https://github.com/LJ-works/AnimeMiTV/issues/69)) ([1a64e55](https://github.com/LJ-works/AnimeMiTV/commit/1a64e557f6efc1d0dcbbcbeac5f4b0cb30e3cfd4))
+
+
+### Performance Improvements
+
+* 为完整剧集列表添加短期进程内缓存 ([#67](https://github.com/LJ-works/AnimeMiTV/issues/67)) ([9061e73](https://github.com/LJ-works/AnimeMiTV/commit/9061e738140e8ba616950e4196ece97e57cccd31))
+
 ## [1.7.0](https://github.com/LJ-works/AnimeMiTV/compare/v1.6.0...v1.7.0) (2026-08-15)
 
 
