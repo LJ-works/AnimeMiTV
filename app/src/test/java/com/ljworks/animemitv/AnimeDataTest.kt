@@ -12,6 +12,26 @@ import java.net.URL
 
 class AnimeDataTest {
     @Test
+    fun filtersAnimeTitlesByContiguousCaseInsensitiveTrimmedQueryInSourceOrder() {
+        val source = listOf(
+            Anime(1, "My Anime", "", "", "", ""),
+            Anime(2, "中文动画", "", "", "", ""),
+            Anime(3, "Anime World", "", "", "", ""),
+        )
+
+        assertEquals(listOf(1, 3), filterAnimeByTitle(source, "anime").map { it.id })
+        assertEquals(listOf(1), filterAnimeByTitle(source, "  MY  ").map { it.id })
+        assertEquals(listOf(1, 3), filterAnimeByTitle(source, "nim").map { it.id })
+        assertEquals(listOf(1, 3), filterAnimeByTitle(source, "ime").map { it.id })
+        assertEquals(listOf(3), filterAnimeByTitle(source, "world").map { it.id })
+        assertEquals(listOf(2), filterAnimeByTitle(source, "动画").map { it.id })
+        assertEquals(emptyList<Int>(), filterAnimeByTitle(source, "Mie").map { it.id })
+        assertEquals(source, filterAnimeByTitle(source, ""))
+        assertEquals(source, filterAnimeByTitle(source, "  "))
+        assertEquals(listOf(1, 2, 3), source.map { it.id })
+    }
+
+    @Test
     fun parsesAnimeListAndFiltersExternalAdultEntries() {
         val json = javaClass.getResource("/animelist.json")!!.readText()
 

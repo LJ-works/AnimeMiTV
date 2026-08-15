@@ -1,7 +1,10 @@
 package com.ljworks.animemitv
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,18 +16,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -34,11 +40,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Border
+import androidx.tv.material3.Button
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+
+private const val ANIME_GRID_COLUMNS = 5
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -48,6 +57,8 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
     }
     val followed = state.screen == AppScreen.FollowedAnimeList
     val source = if (followed) EpisodeSource.FOLLOWED_ANIME_LIST else EpisodeSource.ANIME_LIST
+    val searchRequester = remember { FocusRequester() }
+    BackHandler(enabled = !followed && state.isAnimeSearchActive) { viewModel.closeAnimeSearch() }
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -74,25 +85,102 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
                     .testTag("anime-top-bar"),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    if (followed) "关注的动画" else "动画",
-                    modifier = Modifier.testTag(if (followed) "followed-anime-title" else "anime-title"),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                if (!followed && state.isAnimeSearchActive) {
+                    AnimeSearchHeader(state, viewModel)
+                } else {
+                    Text(
+                        if (followed) "关注的动画" else "动画",
+                        modifier = Modifier.testTag(if (followed) "followed-anime-title" else "anime-title"),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    if (!followed) {
+                        Spacer(Modifier.weight(1f))
+                        Button(
+                            onClick = viewModel::openAnimeSearch,
+                            modifier = Modifier
+                                .focusRequester(searchRequester)
+                                .testTag("anime-search-button"),
+                        ) { Text("搜索") }
+                    }
+                }
             }
             when (val anime = state.anime) {
                 LoadState.Loading -> StatusMessage("正在加载动画列表…")
                 is LoadState.Error -> RetryMessage(anime.message, viewModel::retryAnime)
-                is LoadState.Content -> AnimeGrid(
-                    items = if (followed) state.followedAnime else anime.value,
-                    focusedAnimeId = if (followed) state.focusedFollowedAnimeId else state.focusedAnimeId,
-                    viewModel = viewModel,
-                    source = source,
-                    emptyMessage = if (followed) "还没有关注的动画" else "没有可显示的动画",
-                )
+                is LoadState.Content -> {
+                    val items = if (followed) {
+                        state.followedAnime
+                    } else {
+                        remember(anime.value, state.animeSearchQuery) {
+                            filterAnimeByTitle(anime.value, state.animeSearchQuery)
+                        }
+                    }
+                    AnimeGrid(
+                        items = items,
+                        focusedAnimeId = if (followed) state.focusedFollowedAnimeId else state.focusedAnimeId,
+                        viewModel = viewModel,
+                        source = source,
+                        restoreFocus = followed || !state.isAnimeSearchActive,
+                        upRequester = searchRequester.takeIf { !followed && !state.isAnimeSearchActive },
+                        emptyMessage = when {
+                            followed -> "还没有关注的动画"
+                            state.animeSearchQuery.isNotBlank() -> "没有找到匹配的动画"
+                            else -> "没有可显示的动画"
+                        },
+                    )
+                }
                 LoadState.Idle -> Unit
             }
         }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun AnimeSearchHeader(state: AppUiState, viewModel: AnimeViewModel) {
+    val inputRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        runCatching { inputRequester.requestFocus() }
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BasicTextField(
+            value = state.animeSearchQuery,
+            onValueChange = viewModel::updateAnimeSearchQuery,
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+                .focusRequester(inputRequester)
+                .testTag("anime-search-input"),
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
+            decorationBox = { innerTextField ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .border(2.dp, Color(0xFF8FE3E0), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (state.animeSearchQuery.isEmpty()) {
+                        Text("搜索动画", color = Color.LightGray)
+                    }
+                    Box(Modifier.weight(1f)) { innerTextField() }
+                }
+            },
+        )
+        Button(
+            onClick = viewModel::clearAnimeSearch,
+            modifier = Modifier.testTag("anime-search-clear"),
+        ) { Text("清除") }
+        Button(
+            onClick = viewModel::closeAnimeSearch,
+            modifier = Modifier.testTag("anime-search-close"),
+        ) { Text("取消") }
     }
 }
 
@@ -103,32 +191,38 @@ private fun AnimeGrid(
     focusedAnimeId: Int?,
     viewModel: AnimeViewModel,
     source: EpisodeSource,
+    restoreFocus: Boolean,
+    upRequester: FocusRequester?,
     emptyMessage: String,
 ) {
     val gridState = rememberLazyGridState()
     val firstCardRequester = remember { FocusRequester() }
     val targetAnimeId = items.firstOrNull { it.id == focusedAnimeId }?.id ?: items.firstOrNull()?.id
     val targetAnimeIndex = items.indexOfFirst { it.id == targetAnimeId }
-    var focusRestored by remember(targetAnimeId, source) { mutableStateOf(false) }
-    LaunchedEffect(source) {
-        if (targetAnimeIndex >= 0) gridState.scrollToItem(targetAnimeIndex)
+    var focusRestored by remember(targetAnimeId, source, restoreFocus) { mutableStateOf(false) }
+    LaunchedEffect(source, restoreFocus) {
+        if (restoreFocus && targetAnimeIndex >= 0) gridState.scrollToItem(targetAnimeIndex)
     }
     if (items.isEmpty()) {
         StatusMessage(emptyMessage)
     } else {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(5),
+            columns = GridCells.Fixed(ANIME_GRID_COLUMNS),
             state = gridState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 4.dp, end = 4.dp, top = 20.dp, bottom = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            items(items, key = { it.id }) { anime ->
+            itemsIndexed(items, key = { _, anime -> anime.id }) { index, anime ->
                 val cardModifier = Modifier
+                    .let { modifier ->
+                        if (index < ANIME_GRID_COLUMNS && upRequester != null) modifier.focusProperties { up = upRequester }
+                        else modifier
+                    }
                     .onFocusChanged { if (it.isFocused) viewModel.rememberAnimeFocus(anime.id) }
                     .let { modifier ->
-                        if (anime.id == targetAnimeId) {
+                        if (anime.id == targetAnimeId && restoreFocus) {
                             modifier
                                 .focusRequester(firstCardRequester)
                                 .onGloballyPositioned {
