@@ -2,7 +2,9 @@ package com.ljworks.animemitv
 
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -11,6 +13,41 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class AnimeDataTest {
+    @Test
+    fun matchesConsecutivePinyinSyllablePrefixesWithoutBreakingSyllableBoundaries() {
+        val pinyin = listOf("dong", "hua")
+
+        assertTrue(matchesPinyinSyllablePrefixes(pinyin, "d"))
+        assertTrue(matchesPinyinSyllablePrefixes(pinyin, "dh"))
+        assertTrue(matchesPinyinSyllablePrefixes(pinyin, "dhu"))
+        assertTrue(matchesPinyinSyllablePrefixes(pinyin, "Donghua"))
+        assertTrue(matchesPinyinSyllablePrefixes(pinyin, "hua"))
+        assertFalse(matchesPinyinSyllablePrefixes(pinyin, "onghu"))
+        assertFalse(matchesPinyinSyllablePrefixes(pinyin, "dua"))
+        assertFalse(matchesPinyinSyllablePrefixes(pinyin, "Dong Hua"))
+        assertFalse(matchesPinyinSyllablePrefixes(pinyin, "dònghuà"))
+    }
+
+    @Test
+    fun filtersAnimeTitlesUsingSimplifiedAndPinyinSearchTermsInSourceOrder() {
+        val source = listOf(
+            Anime(1, "动画", "", "", "", ""),
+            Anime(2, "動畫", "", "", "", ""),
+            Anime(3, "其他", "", "", "", ""),
+        )
+        val searchTerms = mapOf(
+            1 to AnimeSearchTerms("动画", listOf("dong", "hua")),
+            2 to AnimeSearchTerms("动画", listOf("dong", "hua")),
+            3 to AnimeSearchTerms("其他", listOf("qi", "ta")),
+        )
+
+        assertEquals(listOf(1, 2), filterAnimeByTitle(source, "動畫", searchTerms, "动画").map { it.id })
+        assertEquals(listOf(1, 2), filterAnimeByTitle(source, "Dhu", searchTerms, "dhu").map { it.id })
+        assertEquals(listOf(1, 2), filterAnimeByTitle(source, "Donghua", searchTerms, "donghua").map { it.id })
+        assertEquals(listOf(1, 2), filterAnimeByTitle(source, "hua", searchTerms, "hua").map { it.id })
+        assertEquals(emptyList<Int>(), filterAnimeByTitle(source, "onghu", searchTerms, "onghu").map { it.id })
+    }
+
     @Test
     fun filtersAnimeTitlesByContiguousCaseInsensitiveTrimmedQueryInSourceOrder() {
         val source = listOf(

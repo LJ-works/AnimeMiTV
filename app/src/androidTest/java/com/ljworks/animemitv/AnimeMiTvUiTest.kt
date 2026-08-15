@@ -93,6 +93,32 @@ class AnimeMiTvUiTest {
     }
 
     @Test
+    fun animeSearchSupportsSimplifiedTraditionalAndPinyinQueries() {
+        val viewModel = viewModel(
+            listOf(
+                Anime(1, "动画", "1", "2026", "夏", ""),
+                Anime(2, "其他", "1", "2026", "夏", ""),
+            ),
+        )
+
+        composeRule.setContent { AnimeMiTVTheme { AnimeMiTVApp(viewModel) } }
+        composeRule.onNodeWithTag("anime-search-button").performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithText("搜索标题或拼音").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("anime-search-input").performTextInput("Donghua")
+        composeRule.onNodeWithTag("anime-card-1").assertIsDisplayed()
+        assertEquals(0, composeRule.onAllNodesWithTag("anime-card-2").fetchSemanticsNodes().size)
+
+        composeRule.onNodeWithTag("anime-search-clear").performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithTag("anime-search-input").performTextInput("Dhu")
+        composeRule.onNodeWithTag("anime-card-1").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("anime-search-clear").performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithTag("anime-search-input").performTextInput("動畫")
+        composeRule.onNodeWithTag("anime-card-1").assertIsDisplayed()
+    }
+
+    @Test
     fun animeSearchResultStillOpensEpisodes() {
         val anime = Anime(1933, "测试动画", "連載中(01)", "2026", "夏", "")
         val episode = Episode("1", "测试动画 [01]", "https://anime1.me/1", "request", "v1", "pt2")

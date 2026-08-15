@@ -109,11 +109,20 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
                 LoadState.Loading -> StatusMessage("正在加载动画列表…")
                 is LoadState.Error -> RetryMessage(anime.message, viewModel::retryAnime)
                 is LoadState.Content -> {
+                    val searchTerms = remember(anime.value) { buildAnimeSearchTerms(anime.value) }
+                    val simplifiedQuery = remember(state.animeSearchQuery) {
+                        simplifyAnimeSearchQuery(state.animeSearchQuery)
+                    }
                     val items = if (followed) {
                         state.followedAnime
                     } else {
                         remember(anime.value, state.animeSearchQuery) {
-                            filterAnimeByTitle(anime.value, state.animeSearchQuery)
+                            filterAnimeByTitle(
+                                anime.value,
+                                state.animeSearchQuery,
+                                searchTerms,
+                                simplifiedQuery,
+                            )
                         }
                     }
                     AnimeGrid(
@@ -177,7 +186,7 @@ private fun AnimeSearchHeader(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (state.animeSearchQuery.isEmpty()) {
-                        Text("搜索动画", color = Color.LightGray)
+                        Text("搜索标题或拼音", color = Color.LightGray)
                     }
                     Box(Modifier.weight(1f)) { innerTextField() }
                 }
