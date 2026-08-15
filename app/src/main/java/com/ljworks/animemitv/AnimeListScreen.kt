@@ -58,6 +58,7 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
     val followed = state.screen == AppScreen.FollowedAnimeList
     val source = if (followed) EpisodeSource.FOLLOWED_ANIME_LIST else EpisodeSource.ANIME_LIST
     val searchRequester = remember { FocusRequester() }
+    val searchInputRequester = remember { FocusRequester() }
     BackHandler(enabled = !followed && state.isAnimeSearchActive) { viewModel.closeAnimeSearch() }
     Row(
         modifier = Modifier
@@ -86,7 +87,7 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (!followed && state.isAnimeSearchActive) {
-                    AnimeSearchHeader(state, viewModel)
+                    AnimeSearchHeader(state, viewModel, searchInputRequester)
                 } else {
                     Text(
                         if (followed) "关注的动画" else "动画",
@@ -120,8 +121,12 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
                         focusedAnimeId = if (followed) state.focusedFollowedAnimeId else state.focusedAnimeId,
                         viewModel = viewModel,
                         source = source,
-                        restoreFocus = followed || !state.isAnimeSearchActive,
-                        upRequester = searchRequester.takeIf { !followed && !state.isAnimeSearchActive },
+                        restoreFocus = followed || !state.isAnimeSearchActive || state.restoreAnimeSearchFocus,
+                        upRequester = when {
+                            followed -> null
+                            state.isAnimeSearchActive -> searchInputRequester
+                            else -> searchRequester
+                        },
                         emptyMessage = when {
                             followed -> "还没有关注的动画"
                             state.animeSearchQuery.isNotBlank() -> "没有找到匹配的动画"
@@ -137,11 +142,16 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun AnimeSearchHeader(state: AppUiState, viewModel: AnimeViewModel) {
-    val inputRequester = remember { FocusRequester() }
+private fun AnimeSearchHeader(
+    state: AppUiState,
+    viewModel: AnimeViewModel,
+    inputRequester: FocusRequester,
+) {
     LaunchedEffect(Unit) {
-        withFrameNanos { }
-        runCatching { inputRequester.requestFocus() }
+        if (!state.restoreAnimeSearchFocus) {
+            withFrameNanos { }
+            runCatching { inputRequester.requestFocus() }
+        }
     }
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -200,8 +210,8 @@ private fun AnimeGrid(
     val targetAnimeId = items.firstOrNull { it.id == focusedAnimeId }?.id ?: items.firstOrNull()?.id
     val targetAnimeIndex = items.indexOfFirst { it.id == targetAnimeId }
     var focusRestored by remember(targetAnimeId, source, restoreFocus) { mutableStateOf(false) }
-    LaunchedEffect(source, restoreFocus) {
-        if (restoreFocus && targetAnimeIndex >= 0) gridState.scrollToItem(targetAnimeIndex)
+    LaunchedEffect(source, targetAnimeId, targetAnimeIndex, items.size) {
+        if (targetAnimeIndex >= 0) gridState.scrollToItem(targetAnimeIndex)
     }
     if (items.isEmpty()) {
         StatusMessage(emptyMessage)

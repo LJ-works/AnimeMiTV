@@ -48,6 +48,7 @@ data class AppUiState(
     val focusedFollowedAnimeId: Int? = null,
     val isAnimeSearchActive: Boolean = false,
     val animeSearchQuery: String = "",
+    val restoreAnimeSearchFocus: Boolean = false,
     val seasonalDiscovery: LoadState<List<AnimeSeason>> = LoadState.Idle,
     val currentSeason: AnimeSeason? = null,
     val selectedSeason: AnimeSeason? = null,
@@ -107,7 +108,7 @@ class AnimeViewModel(
 
     fun openAnimeSearch() {
         if (_uiState.value.screen == AppScreen.AnimeList) {
-            _uiState.update { it.copy(isAnimeSearchActive = true) }
+            _uiState.update { it.copy(isAnimeSearchActive = true, restoreAnimeSearchFocus = false) }
         }
     }
 
@@ -125,7 +126,9 @@ class AnimeViewModel(
 
     fun closeAnimeSearch() {
         if (!_uiState.value.isAnimeSearchActive) return
-        _uiState.update { it.copy(isAnimeSearchActive = false, animeSearchQuery = "") }
+        _uiState.update {
+            it.copy(isAnimeSearchActive = false, animeSearchQuery = "", restoreAnimeSearchFocus = false)
+        }
     }
 
     fun openFollowedAnime() {
@@ -140,6 +143,7 @@ class AnimeViewModel(
                 unavailableMessage = null,
                 isAnimeSearchActive = false,
                 animeSearchQuery = "",
+                restoreAnimeSearchFocus = false,
             )
         }
         if (_uiState.value.anime is LoadState.Idle) loadAnime()
@@ -183,6 +187,7 @@ class AnimeViewModel(
                 unavailableMessage = null,
                 isAnimeSearchActive = false,
                 animeSearchQuery = "",
+                restoreAnimeSearchFocus = false,
             )
         }
         if (_uiState.value.seasonalDiscovery is LoadState.Content) {
@@ -284,6 +289,7 @@ class AnimeViewModel(
                 unavailableMessage = null,
                 isAnimeSearchActive = false,
                 animeSearchQuery = "",
+                restoreAnimeSearchFocus = false,
             )
         }
     }
@@ -291,7 +297,7 @@ class AnimeViewModel(
     fun rememberAnimeFocus(id: Int) {
         _uiState.update {
             when (it.screen) {
-                AppScreen.AnimeList -> it.copy(focusedAnimeId = id)
+                AppScreen.AnimeList -> it.copy(focusedAnimeId = id, restoreAnimeSearchFocus = false)
                 AppScreen.FollowedAnimeList -> it.copy(focusedFollowedAnimeId = id)
                 else -> it
             }
@@ -309,8 +315,6 @@ class AnimeViewModel(
             it.copy(
                 screen = AppScreen.EpisodeList,
                 selectedAnime = anime,
-                isAnimeSearchActive = false,
-                animeSearchQuery = "",
                 episodeSource = source,
                 episodes = LoadState.Loading,
                 episodeSort = EpisodeSort.NEWEST,
@@ -421,12 +425,14 @@ class AnimeViewModel(
                 episodeJob?.cancel()
                 playbackJob?.cancel()
                 _uiState.update {
+                    val destination = when (it.episodeSource) {
+                        EpisodeSource.ANIME_LIST -> AppScreen.AnimeList
+                        EpisodeSource.SEASONAL_LIST -> AppScreen.SeasonalList
+                        EpisodeSource.FOLLOWED_ANIME_LIST -> AppScreen.FollowedAnimeList
+                    }
                     it.copy(
-                        screen = when (it.episodeSource) {
-                            EpisodeSource.ANIME_LIST -> AppScreen.AnimeList
-                            EpisodeSource.SEASONAL_LIST -> AppScreen.SeasonalList
-                            EpisodeSource.FOLLOWED_ANIME_LIST -> AppScreen.FollowedAnimeList
-                        },
+                        screen = destination,
+                        restoreAnimeSearchFocus = destination == AppScreen.AnimeList && it.isAnimeSearchActive,
                     )
                 }
             }
