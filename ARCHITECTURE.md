@@ -120,7 +120,7 @@ suspend fun resolvePlayback(anime: Anime, episode: Episode): PlayableSource
 
 所有用户行为通过 ViewModel 方法进入，例如选择动画或季度、切换排序、播放、重试和返回。Compose 只渲染状态并转发事件。
 
-每类异步请求都持有 Job。打开新动画、播放新剧集或切换顶层栏目时取消旧 Job；请求完成后还会核对当前页面、季度、动画和剧集 ID，旧结果不能写入新页面，也不会写入缓存。
+每类异步请求都持有 Job。打开新动画、播放新剧集或切换顶层栏目时取消旧 Job；请求完成后还会核对当前页面、季度、动画和剧集 ID，旧结果不能写入新页面，也不会写入缓存。剧集请求的“当前动画”判定与缓存 key 使用同一身份定义（`动画 id + 分类地址`），因此 ID 相同但分类地址不同的两部动画不会互相污染 UI 或缓存。
 
 `episodeCache` 是 ViewModel 内的进程内剧集缓存：key 为 `动画 id + 分类地址`，值为剧集列表与写入时的单调时间戳（`elapsedRealtimeMillis`，默认 `SystemClock.elapsedRealtime()`，测试可注入假时钟），TTL 为 `EPISODE_CACHE_TTL_MILLIS`（10 分钟）。缓存只随 ViewModel / 进程存活，不做任何持久化。
 

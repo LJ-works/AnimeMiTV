@@ -352,13 +352,13 @@ class AnimeViewModel(
         episodeJob = scope.launch {
             try {
                 val episodes = loadAllEpisodes(anime)
-                if (!isCurrentAnime(anime.id)) return@launch
+                if (!isCurrentAnime(anime)) return@launch
                 episodeCache[episodeCacheKey(anime)] = CachedEpisodes(episodes, elapsedRealtimeMillis())
                 _uiState.update { it.copy(episodes = LoadState.Content(episodes)) }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                if (isCurrentAnime(anime.id)) {
+                if (isCurrentAnime(anime)) {
                     _uiState.update { it.copy(episodes = LoadState.Error(error.message ?: "剧集加载失败")) }
                 }
             }
@@ -491,8 +491,9 @@ class AnimeViewModel(
         return cached.episodes
     }
 
-    private fun isCurrentAnime(animeId: Int): Boolean =
-        _uiState.value.screen == AppScreen.EpisodeList && _uiState.value.selectedAnime?.id == animeId
+    private fun isCurrentAnime(anime: Anime): Boolean =
+        _uiState.value.screen == AppScreen.EpisodeList &&
+            _uiState.value.selectedAnime?.let(::episodeCacheKey) == episodeCacheKey(anime)
 
     private fun isCurrentEpisode(animeId: Int?, episodeId: String): Boolean =
         _uiState.value.screen == AppScreen.Player &&

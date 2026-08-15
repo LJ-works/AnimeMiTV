@@ -402,6 +402,34 @@ class AnimeViewModelTest {
     }
 
     @Test
+    fun lateResultOfSameIdButDifferentCategoryUrlIsIgnoredAndNotCached() {
+        val fromList = Anime(anime.id, anime.title, "", "", "", "", "https://anime1.me/?cat=1933")
+        val fromSeasonal = Anime(anime.id, anime.title, "", "", "", "", "https://anime1.me/?cat=1933&alt=1")
+        val source = PageKeyedDeferredDataSource()
+        val viewModel = createViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+
+        viewModel.openAnime(fromList)
+        viewModel.openAnime(fromSeasonal, EpisodeSource.SEASONAL_LIST)
+        source.requests.getValue(fromSeasonal.categoryUrl)
+            .complete(EpisodePage(listOf(episode.copy(id = "seasonal")), null))
+        source.requests.getValue(fromList.categoryUrl)
+            .complete(EpisodePage(listOf(episode.copy(id = "list")), null))
+
+        assertEquals("seasonal", (viewModel.uiState.value.episodes as LoadState.Content).value.single().id)
+
+        val callsBeforeReopen = source.fetchCalls
+        viewModel.back()
+        viewModel.openAnime(fromSeasonal, EpisodeSource.SEASONAL_LIST)
+        assertEquals(callsBeforeReopen, source.fetchCalls)
+        assertEquals("seasonal", (viewModel.uiState.value.episodes as LoadState.Content).value.single().id)
+
+        viewModel.back()
+        viewModel.openAnime(fromList)
+        assertEquals(callsBeforeReopen + 1, source.fetchCalls)
+        assertEquals("list", (viewModel.uiState.value.episodes as LoadState.Content).value.single().id)
+    }
+
+    @Test
     fun expiredEpisodeCacheIsReloadedAndReplaced() {
         val dataSource = FakeDataSource()
         val clock = FakeClock()
@@ -648,6 +676,21 @@ class AnimeViewModelTest {
         }
 
         override suspend fun fetchEpisodes(anime: Anime, pageUrl: String) = EpisodePage(emptyList(), null)
+
+        override suspend fun resolvePlayback(anime: Anime, episode: Episode) =
+            PlayableSource("https://video.example/episode.mp4")
+    }
+
+    private class PageKeyedDeferredDataSource : Anime1DataSource {
+        val requests = mutableMapOf<String, CompletableDeferred<EpisodePage>>()
+        var fetchCalls = 0
+
+        override suspend fun fetchAnimeList() = emptyList<Anime>()
+
+        override suspend fun fetchEpisodes(anime: Anime, pageUrl: String): EpisodePage {
+            fetchCalls++
+            return requests.getOrPut(pageUrl) { CompletableDeferred() }.await()
+        }
 
         override suspend fun resolvePlayback(anime: Anime, episode: Episode) =
             PlayableSource("https://video.example/episode.mp4")
