@@ -124,6 +124,7 @@ class AnimeViewModel(
     }
 
     fun closeAnimeSearch() {
+        if (!_uiState.value.isAnimeSearchActive) return
         _uiState.update { it.copy(isAnimeSearchActive = false, animeSearchQuery = "") }
     }
 

@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -45,6 +46,8 @@ import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+
+private const val ANIME_GRID_COLUMNS = 5
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -105,7 +108,13 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
                 LoadState.Loading -> StatusMessage("正在加载动画列表…")
                 is LoadState.Error -> RetryMessage(anime.message, viewModel::retryAnime)
                 is LoadState.Content -> {
-                    val items = if (followed) state.followedAnime else filterAnimeByTitle(anime.value, state.animeSearchQuery)
+                    val items = if (followed) {
+                        state.followedAnime
+                    } else {
+                        remember(anime.value, state.animeSearchQuery) {
+                            filterAnimeByTitle(anime.value, state.animeSearchQuery)
+                        }
+                    }
                     AnimeGrid(
                         items = items,
                         focusedAnimeId = if (followed) state.focusedFollowedAnimeId else state.focusedAnimeId,
@@ -115,7 +124,7 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
                         upRequester = searchRequester.takeIf { !followed && !state.isAnimeSearchActive },
                         emptyMessage = when {
                             followed -> "还没有关注的动画"
-                            state.animeSearchQuery.trim().isNotEmpty() -> "没有找到匹配的动画"
+                            state.animeSearchQuery.isNotBlank() -> "没有找到匹配的动画"
                             else -> "没有可显示的动画"
                         },
                     )
@@ -130,7 +139,10 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
 @Composable
 private fun AnimeSearchHeader(state: AppUiState, viewModel: AnimeViewModel) {
     val inputRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { inputRequester.requestFocus() }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        runCatching { inputRequester.requestFocus() }
+    }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -195,7 +207,7 @@ private fun AnimeGrid(
         StatusMessage(emptyMessage)
     } else {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(5),
+            columns = GridCells.Fixed(ANIME_GRID_COLUMNS),
             state = gridState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 4.dp, end = 4.dp, top = 20.dp, bottom = 20.dp),
@@ -205,7 +217,7 @@ private fun AnimeGrid(
             itemsIndexed(items, key = { _, anime -> anime.id }) { index, anime ->
                 val cardModifier = Modifier
                     .let { modifier ->
-                        if (index < 5 && upRequester != null) modifier.focusProperties { up = upRequester }
+                        if (index < ANIME_GRID_COLUMNS && upRequester != null) modifier.focusProperties { up = upRequester }
                         else modifier
                     }
                     .onFocusChanged { if (it.isFocused) viewModel.rememberAnimeFocus(anime.id) }
