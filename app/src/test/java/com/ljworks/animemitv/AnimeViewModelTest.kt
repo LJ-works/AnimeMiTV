@@ -13,6 +13,25 @@ class AnimeViewModelTest {
     private val episode = Episode("1", "相反的你和我 第二季 [01]", "https://anime1.me/1", "request", "v1", "pt2")
 
     @Test
+    fun rootBackRequestShowsExitConfirmation() {
+        val viewModel = AnimeViewModel(FakeDataSource(), CoroutineScope(Dispatchers.Unconfined))
+
+        viewModel.requestExit()
+
+        assertTrue(viewModel.uiState.value.isExitConfirmVisible)
+    }
+
+    @Test
+    fun dismissingExitConfirmationHidesIt() {
+        val viewModel = AnimeViewModel(FakeDataSource(), CoroutineScope(Dispatchers.Unconfined))
+
+        viewModel.requestExit()
+        viewModel.dismissExit()
+
+        assertFalse(viewModel.uiState.value.isExitConfirmVisible)
+    }
+
+    @Test
     fun openingSeasonalDiscoversTwentyOneSeasonsAndLoadsOnlyTheSelectedSchedule() {
         val source = SeasonalFake()
         val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
