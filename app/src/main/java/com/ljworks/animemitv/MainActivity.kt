@@ -42,7 +42,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             AnimeMiTVTheme {
-                AnimeMiTVApp(animeViewModel)
+                AnimeMiTVApp(animeViewModel, onExit = ::finish)
             }
         }
     }
@@ -50,7 +50,10 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-internal fun AnimeMiTVApp(viewModel: AnimeViewModel) {
+internal fun AnimeMiTVApp(
+    viewModel: AnimeViewModel,
+    onExit: () -> Unit = {},
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     LaunchedEffect(state.followedAnimeSaveError) {
@@ -62,7 +65,13 @@ internal fun AnimeMiTVApp(viewModel: AnimeViewModel) {
     if (state.screen != AppScreen.AnimeList &&
         state.screen != AppScreen.SeasonalList &&
         state.screen != AppScreen.FollowedAnimeList
-    ) BackHandler { viewModel.back() }
+    ) {
+        BackHandler { viewModel.back() }
+    } else {
+        BackHandler(enabled = !state.isExitConfirmVisible && !state.isAnimeSearchActive) {
+            viewModel.requestExit()
+        }
+    }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -79,5 +88,15 @@ internal fun AnimeMiTVApp(viewModel: AnimeViewModel) {
                 AppScreen.Player -> PlayerScreen(state, viewModel)
             }
         }
+    }
+
+    if (state.isExitConfirmVisible) {
+        ExitConfirmDialog(
+            onDismiss = viewModel::dismissExit,
+            onConfirm = {
+                viewModel.dismissExit()
+                onExit()
+            },
+        )
     }
 }

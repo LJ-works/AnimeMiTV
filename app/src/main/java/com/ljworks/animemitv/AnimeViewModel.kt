@@ -64,6 +64,7 @@ data class AppUiState(
     val selectedEpisode: Episode? = null,
     val playback: LoadState<PlayableSource> = LoadState.Idle,
     val followedAnimeSaveError: String? = null,
+    val isExitConfirmVisible: Boolean = false,
 )
 
 class AnimeViewModel(
@@ -83,6 +84,23 @@ class AnimeViewModel(
     private var playbackJob: Job? = null
     private var unavailableJob: Job? = null
     private val seasonalCache = mutableMapOf<String, AnimeSchedule>()
+
+    fun requestExit() {
+        _uiState.update {
+            if (it.screen == AppScreen.AnimeList ||
+                it.screen == AppScreen.SeasonalList ||
+                it.screen == AppScreen.FollowedAnimeList
+            ) {
+                it.copy(isExitConfirmVisible = true)
+            } else {
+                it
+            }
+        }
+    }
+
+    fun dismissExit() {
+        _uiState.update { it.copy(isExitConfirmVisible = false) }
+    }
 
     fun loadAnime() {
         animeJob?.cancel()
@@ -140,6 +158,7 @@ class AnimeViewModel(
         _uiState.update {
             it.copy(
                 screen = AppScreen.FollowedAnimeList,
+                isExitConfirmVisible = false,
                 unavailableMessage = null,
                 isAnimeSearchActive = false,
                 animeSearchQuery = "",
@@ -184,6 +203,7 @@ class AnimeViewModel(
         _uiState.update {
             it.copy(
                 screen = AppScreen.SeasonalList,
+                isExitConfirmVisible = false,
                 unavailableMessage = null,
                 isAnimeSearchActive = false,
                 animeSearchQuery = "",
@@ -286,6 +306,7 @@ class AnimeViewModel(
         _uiState.update {
             it.copy(
                 screen = AppScreen.AnimeList,
+                isExitConfirmVisible = false,
                 unavailableMessage = null,
                 isAnimeSearchActive = false,
                 animeSearchQuery = "",
