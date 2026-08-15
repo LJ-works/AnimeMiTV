@@ -94,6 +94,7 @@ internal fun ExitConfirmDialog(
         Column(
             modifier = Modifier
                 .width(420.dp)
+                .testTag("exit-confirm-dialog")
                 .background(Color(0xFF102B4D), RoundedCornerShape(16.dp))
                 .padding(32.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
@@ -102,11 +103,16 @@ internal fun ExitConfirmDialog(
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Button(
                     onClick = onDismiss,
-                    modifier = Modifier.focusRequester(dismissRequester),
+                    modifier = Modifier
+                        .focusRequester(dismissRequester)
+                        .testTag("exit-confirm-dismiss"),
                 ) {
                     Text("取消")
                 }
-                Button(onClick = onConfirm) {
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier.testTag("exit-confirm-confirm"),
+                ) {
                     Text("退出")
                 }
             }
