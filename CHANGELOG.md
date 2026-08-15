@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.6.0](https://github.com/LJ-works/AnimeMiTV/compare/v1.5.1...v1.6.0) (2026-08-15)
+
+
+### Features
+
+* confirm before exiting from root screens ([#56](https://github.com/LJ-works/AnimeMiTV/issues/56)) ([1c64b3c](https://github.com/LJ-works/AnimeMiTV/commit/1c64b3c8916c112492a795309e945f99b40e888f))
+* 为完整动画列表提供本地标题搜索 ([#53](https://github.com/LJ-works/AnimeMiTV/issues/53)) ([9576a31](https://github.com/LJ-works/AnimeMiTV/commit/9576a319f2f7bf3353ba0338a7a20817e4efed96))
+* 恢复搜索结果的导航与动画焦点上下文 ([#52](https://github.com/LJ-works/AnimeMiTV/issues/52)) ([#55](https://github.com/LJ-works/AnimeMiTV/issues/55)) ([d546dbe](https://github.com/LJ-works/AnimeMiTV/commit/d546dbe0cc5f33567e909490d7ef57bacee4938c))
+
+
+### Bug Fixes
+
+* 优化 TV 圆形裁剪下的应用图标显示 ([#48](https://github.com/LJ-works/AnimeMiTV/issues/48)) ([e90a2b7](https://github.com/LJ-works/AnimeMiTV/commit/e90a2b7f6fce9cfbd86b15ec2b3dca24af426bdb)), closes [#47](https://github.com/LJ-works/AnimeMiTV/issues/47)
+
 ## [1.5.1](https://github.com/LJ-works/AnimeMiTV/compare/v1.5.0...v1.5.1) (2026-08-14)
 
 
