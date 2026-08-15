@@ -1,5 +1,6 @@
 package com.ljworks.animemitv
 
+import android.icu.text.Transliterator
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -62,12 +63,74 @@ data class PlayableSource(
     val headers: Map<String, String> = emptyMap(),
 )
 
-fun filterAnimeByTitle(source: List<Anime>, query: String): List<Anime> {
+internal data class AnimeSearchTerms(
+    val simplifiedTitle: String,
+    val pinyinSyllables: List<String>,
+)
+
+internal fun filterAnimeByTitle(
+    source: List<Anime>,
+    query: String,
+    searchTerms: Map<Int, AnimeSearchTerms> = emptyMap(),
+    simplifiedQuery: String = query.trim(),
+): List<Anime> {
     val normalizedQuery = query.trim()
-    return if (normalizedQuery.isEmpty()) source else source.filter {
-        it.title.contains(normalizedQuery, ignoreCase = true)
+    if (normalizedQuery.isEmpty()) return source
+
+    val canUsePinyin = normalizedQuery.all { it in 'a'..'z' || it in 'A'..'Z' }
+    return source.filter { anime ->
+        val terms = searchTerms[anime.id]
+        val title = terms?.simplifiedTitle ?: anime.title
+        title.contains(simplifiedQuery, ignoreCase = true) ||
+            (canUsePinyin && terms != null &&
+                matchesPinyinSyllablePrefixes(terms.pinyinSyllables, normalizedQuery))
     }
 }
+
+internal fun matchesPinyinSyllablePrefixes(syllables: List<String>, query: String): Boolean {
+    val normalizedQuery = query.lowercase(Locale.ROOT)
+    if (normalizedQuery.isEmpty()) return false
+
+    fun matchesFrom(syllableIndex: Int, queryIndex: Int): Boolean {
+        if (queryIndex == normalizedQuery.length) return true
+        if (syllableIndex == syllables.size) return false
+
+        val syllable = syllables[syllableIndex]
+        val maxPrefixLength = minOf(syllable.length, normalizedQuery.length - queryIndex)
+        for (prefixLength in 1..maxPrefixLength) {
+            if (normalizedQuery.regionMatches(queryIndex, syllable, 0, prefixLength) &&
+                matchesFrom(syllableIndex + 1, queryIndex + prefixLength)
+            ) {
+                return true
+            }
+        }
+        return false
+    }
+
+    return syllables.indices.any { matchesFrom(it, 0) }
+}
+
+private val traditionalToSimplified by lazy {
+    Transliterator.getInstance("Traditional-Simplified")
+}
+
+private val hanToPinyin by lazy {
+    Transliterator.getInstance("Han-Latin; Latin-ASCII")
+}
+
+internal fun buildAnimeSearchTerms(source: List<Anime>): Map<Int, AnimeSearchTerms> =
+    source.associate { anime ->
+        anime.id to AnimeSearchTerms(
+            simplifiedTitle = traditionalToSimplified.transliterate(anime.title),
+            pinyinSyllables = hanToPinyin.transliterate(anime.title)
+                .lowercase(Locale.ROOT)
+                .split(Regex("[^a-z]+"))
+                .filter(String::isNotEmpty),
+        )
+    }
+
+internal fun simplifyAnimeSearchQuery(query: String): String =
+    traditionalToSimplified.transliterate(query.trim())
 
 fun parseAnimeList(json: String): List<Anime> {
     val rows = JSONArray(json)

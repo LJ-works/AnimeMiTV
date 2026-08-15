@@ -30,6 +30,22 @@ import org.junit.Test
 @OptIn(ExperimentalTestApi::class)
 class AnimeMiTvUiTest {
     @Test
+    fun animeListRendersBeforeItsSearchIndexIsReady() {
+        val anime = Anime(1, "动画", "1", "2026", "夏", "")
+        val searchTerms = CompletableDeferred<Map<Int, AnimeSearchTerms>>()
+        val state = AppUiState(anime = LoadState.Content(listOf(anime)))
+
+        composeRule.setContent {
+            AnimeMiTVTheme {
+                AnimeListScreen(state, viewModel(emptyList())) { searchTerms.await() }
+            }
+        }
+
+        composeRule.onNodeWithTag("anime-card-1").assertIsDisplayed()
+        searchTerms.complete(emptyMap())
+    }
+
+    @Test
     fun firstTwoAnimeCardsMoveUpToSearchInsteadOfSidebar() {
         val anime = (1..5).map { Anime(it, "测试动画 $it", "1", "2026", "夏", "") }
         val viewModel = viewModel(anime)
@@ -90,6 +106,32 @@ class AnimeMiTvUiTest {
         composeRule.onNodeWithTag("anime-title").assertIsDisplayed()
         composeRule.onNodeWithTag("anime-search-button").assertIsDisplayed()
         composeRule.onNodeWithTag("anime-card-1").assertIsFocused()
+    }
+
+    @Test
+    fun animeSearchSupportsSimplifiedTraditionalAndPinyinQueries() {
+        val viewModel = viewModel(
+            listOf(
+                Anime(1, "动画", "1", "2026", "夏", ""),
+                Anime(2, "其他", "1", "2026", "夏", ""),
+            ),
+        )
+
+        composeRule.setContent { AnimeMiTVTheme { AnimeMiTVApp(viewModel) } }
+        composeRule.onNodeWithTag("anime-search-button").performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithText("搜索标题或拼音").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("anime-search-input").performTextInput("Donghua")
+        composeRule.onNodeWithTag("anime-card-1").assertIsDisplayed()
+        assertEquals(0, composeRule.onAllNodesWithTag("anime-card-2").fetchSemanticsNodes().size)
+
+        composeRule.onNodeWithTag("anime-search-clear").performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithTag("anime-search-input").performTextInput("Dhu")
+        composeRule.onNodeWithTag("anime-card-1").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("anime-search-clear").performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithTag("anime-search-input").performTextInput("動畫")
+        composeRule.onNodeWithTag("anime-card-1").assertIsDisplayed()
     }
 
     @Test
