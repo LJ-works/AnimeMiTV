@@ -15,7 +15,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -80,9 +79,6 @@ internal fun ExitConfirmDialog(
     onConfirm: () -> Unit,
 ) {
     val dismissRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) {
-        dismissRequester.requestFocus()
-    }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -95,10 +91,13 @@ internal fun ExitConfirmDialog(
             modifier = Modifier
                 .width(420.dp)
                 .testTag("exit-confirm-dialog")
-                .background(Color(0xFF102B4D), RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
                 .padding(32.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
+            LaunchedEffect(dismissRequester) {
+                dismissRequester.requestFocus()
+            }
             Text("确定要退出 AnimeMiTV 吗？", style = MaterialTheme.typography.bodyLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Button(
