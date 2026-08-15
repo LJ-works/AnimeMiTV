@@ -275,6 +275,22 @@ class AnimeViewModelTest {
     }
 
     @Test
+    fun restoredAnimeFocusConsumesTheSearchFocusSignal() {
+        val viewModel = AnimeViewModel(
+            FakeDataSource(animeList = listOf(anime)),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        viewModel.loadAnime()
+        viewModel.openAnimeSearch()
+        viewModel.openAnime(anime)
+        viewModel.back()
+        viewModel.rememberAnimeFocus(anime.id)
+
+        assertFalse(viewModel.uiState.value.restoreAnimeSearchFocus)
+    }
+
+    @Test
     fun animeSearchContextKeepsUnavailableFocusForUiFallback() {
         val first = anime.copy(id = 1, title = "第一部")
         val second = anime.copy(id = 2, title = "第二部")

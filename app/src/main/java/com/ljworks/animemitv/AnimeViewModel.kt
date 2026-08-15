@@ -297,7 +297,7 @@ class AnimeViewModel(
     fun rememberAnimeFocus(id: Int) {
         _uiState.update {
             when (it.screen) {
-                AppScreen.AnimeList -> it.copy(focusedAnimeId = id)
+                AppScreen.AnimeList -> it.copy(focusedAnimeId = id, restoreAnimeSearchFocus = false)
                 AppScreen.FollowedAnimeList -> it.copy(focusedFollowedAnimeId = id)
                 else -> it
             }

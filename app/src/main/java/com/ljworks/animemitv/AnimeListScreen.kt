@@ -209,13 +209,9 @@ private fun AnimeGrid(
     val firstCardRequester = remember { FocusRequester() }
     val targetAnimeId = items.firstOrNull { it.id == focusedAnimeId }?.id ?: items.firstOrNull()?.id
     val targetAnimeIndex = items.indexOfFirst { it.id == targetAnimeId }
-    var focusRestored by remember(source, restoreFocus) { mutableStateOf(false) }
+    var focusRestored by remember(targetAnimeId, source, restoreFocus) { mutableStateOf(false) }
     LaunchedEffect(source, targetAnimeId, targetAnimeIndex, items.size) {
-        if (targetAnimeIndex >= 0) {
-            gridState.scrollToItem(targetAnimeIndex)
-        } else if (restoreFocus) {
-            focusRestored = true
-        }
+        if (targetAnimeIndex >= 0) gridState.scrollToItem(targetAnimeIndex)
     }
     if (items.isEmpty()) {
         StatusMessage(emptyMessage)
