@@ -46,12 +46,20 @@ import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private const val ANIME_GRID_COLUMNS = 5
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
+internal fun AnimeListScreen(
+    state: AppUiState,
+    viewModel: AnimeViewModel,
+    searchTermsLoader: suspend (List<Anime>) -> Map<Int, AnimeSearchTerms> = { source ->
+        withContext(Dispatchers.Default) { buildAnimeSearchTerms(source) }
+    },
+) {
     LaunchedEffect(Unit) {
         if (state.anime is LoadState.Loading || state.anime is LoadState.Idle) viewModel.loadAnime()
     }
@@ -109,18 +117,22 @@ internal fun AnimeListScreen(state: AppUiState, viewModel: AnimeViewModel) {
                 LoadState.Loading -> StatusMessage("正在加载动画列表…")
                 is LoadState.Error -> RetryMessage(anime.message, viewModel::retryAnime)
                 is LoadState.Content -> {
-                    val searchTerms = remember(anime.value) { buildAnimeSearchTerms(anime.value) }
-                    val simplifiedQuery = remember(state.animeSearchQuery) {
-                        simplifyAnimeSearchQuery(state.animeSearchQuery)
+                    var searchTerms by remember(anime.value) { mutableStateOf<Map<Int, AnimeSearchTerms>?>(null) }
+                    LaunchedEffect(anime.value, followed) {
+                        if (!followed) searchTerms = searchTermsLoader(anime.value)
+                    }
+                    val simplifiedQuery = remember(state.animeSearchQuery, searchTerms) {
+                        if (searchTerms == null) state.animeSearchQuery.trim()
+                        else simplifyAnimeSearchQuery(state.animeSearchQuery)
                     }
                     val items = if (followed) {
                         state.followedAnime
                     } else {
-                        remember(anime.value, state.animeSearchQuery) {
+                        remember(anime.value, state.animeSearchQuery, searchTerms) {
                             filterAnimeByTitle(
                                 anime.value,
                                 state.animeSearchQuery,
-                                searchTerms,
+                                searchTerms.orEmpty(),
                                 simplifiedQuery,
                             )
                         }

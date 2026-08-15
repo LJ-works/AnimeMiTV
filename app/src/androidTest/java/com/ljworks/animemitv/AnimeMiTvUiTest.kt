@@ -30,6 +30,22 @@ import org.junit.Test
 @OptIn(ExperimentalTestApi::class)
 class AnimeMiTvUiTest {
     @Test
+    fun animeListRendersBeforeItsSearchIndexIsReady() {
+        val anime = Anime(1, "动画", "1", "2026", "夏", "")
+        val searchTerms = CompletableDeferred<Map<Int, AnimeSearchTerms>>()
+        val state = AppUiState(anime = LoadState.Content(listOf(anime)))
+
+        composeRule.setContent {
+            AnimeMiTVTheme {
+                AnimeListScreen(state, viewModel(emptyList())) { searchTerms.await() }
+            }
+        }
+
+        composeRule.onNodeWithTag("anime-card-1").assertIsDisplayed()
+        searchTerms.complete(emptyMap())
+    }
+
+    @Test
     fun firstTwoAnimeCardsMoveUpToSearchInsteadOfSidebar() {
         val anime = (1..5).map { Anime(it, "测试动画 $it", "1", "2026", "夏", "") }
         val viewModel = viewModel(anime)

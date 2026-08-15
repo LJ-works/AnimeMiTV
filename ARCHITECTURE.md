@@ -57,7 +57,7 @@ app/src/
 ### UI 文件
 
 - `MainActivity.kt`：创建 `AnimeViewModel`、真实 `Anime1HttpDataSource` 和本机关注存储，并根据 `AppScreen` 在动画列表、关注动画列表、季度排期、剧集列表和播放器间切换。
-- `AnimeListScreen.kt`：实现动画列表、文字卡片网格和焦点恢复。
+- `AnimeListScreen.kt`：实现动画列表、文字卡片网格、标题搜索和焦点恢复。搜索索引在后台构建，首屏不等待简繁/拼音预处理。
 - `SeasonalListScreen.kt`：实现季度选择器、日到六排期、无资源提示与季度焦点恢复。
 - `EpisodeListScreen.kt`：实现剧集列表、排序、文字卡片网格和焦点恢复。
 - `PlayerScreen.kt`：使用 `PlayerView` 和 ExoPlayer 自动播放视频，仅显示播放/暂停和进度条；左右键自动聚焦进度条并以 15 秒为单位预览跳转，确认后才提交；上下键保留 Media3 默认焦点导航，控制器显示时返回仅关闭控制器；播放器同时监听播放错误。
@@ -75,8 +75,10 @@ app/src/
 - `EpisodePage`：一页剧集与下一页地址。
 - `PlayableSource`：媒体地址及请求头。
 
-同时包含纯解析入口：
+同时包含解析与本地搜索入口：
 
+- `filterAnimeByTitle`：按标题直接匹配、简繁等价或普通话拼音连续音节前缀筛选已加载列表。
+- `buildAnimeSearchTerms`：为加载完成的动画生成简体标题和拼音音节搜索表示。
 - `parseAnimeList`：解析动画 JSON，并过滤分类 ID 为 `0` 的条目。
 - `parseCurrentSeason`：仅从 Anime1 首页 `#masthead` 识别网站声明的当前季度。
 - `precedingSeasons`：在本地生成当前季及此前连续 20 季的规则化地址。
@@ -132,9 +134,10 @@ suspend fun resolvePlayback(anime: Anime, episode: Episode): PlayableSource
   → parseAnimeList
   → AppUiState.anime = Content
   → Compose 使用 LazyVerticalGrid 连续展示完整列表
+  → 后台生成简繁/拼音搜索索引
 ```
 
-整个动画 JSON 只请求一次；列表由 Compose 惰性组合可见区域附近的卡片，向下滚动不会再次访问网络。完整动画页的搜索仅对这份已加载列表按标题做本地、不区分大小写的连续子字符串过滤，保留原始顺序，不发起额外请求。
+整个动画 JSON 只请求一次；列表由 Compose 惰性组合可见区域附近的卡片，向下滚动不会再次访问网络。完整动画页的搜索仅对这份已加载列表按标题做本地、不区分大小写的连续子字符串过滤，保留原始顺序，不发起额外请求。搜索索引未完成时列表和直接标题搜索已可用；索引完成后自动启用简繁与拼音匹配。
 
 ### 季度排期
 
@@ -233,6 +236,7 @@ Idle → Loading → Content
 - 完整动画页搜索入口、输入焦点、实时过滤、清除、取消、空结果和搜索结果返回焦点恢复。
 - 关注动画入口、空状态、过滤顺序和剧集页关注按钮。
 - 动画列表进入剧集页。
+- 标题的简繁、普通话拼音和连续音节前缀搜索；搜索索引尚未完成时列表仍会显示。
 - 播放错误页的“重试/返回”操作。
 - 播放页面的播放/暂停、进度条跳转和非可见卡片的滚动/焦点恢复。
 
@@ -250,6 +254,7 @@ Idle → Loading → Content
 
 后续功能应优先沿现有接缝扩展：
 
+- 搜索和筛选：在 `AnimeListScreen` 对已加载动画列表派生结果；耗时搜索索引在后台构建。
 - 播放记录：为剧集进度增加独立的本地持久化数据源。
 - 关注动画：使用最小本地存储保存动画 ID，不修改 Anime1 网络数据源。
 - Anime1 页面变化：仅修改 `Anime1HttpDataSource` 或 `Anime.kt` 中的解析器及 fixtures。
