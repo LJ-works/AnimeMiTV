@@ -1,7 +1,6 @@
 package com.ljworks.animemitv
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -75,7 +74,6 @@ internal fun StatusMessage(message: String) {
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
 @Composable
 internal fun ExitConfirmDialog(
     onDismiss: () -> Unit,
