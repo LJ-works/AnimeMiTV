@@ -45,6 +45,20 @@ class AnimeMiTvUiTest {
     }
 
     @Test
+    fun movingFocusDownKeepsThePreviousRowVisible() {
+        val anime = (1..10).map { Anime(it, "测试动画 $it", "1", "2026", "夏", "") }
+        val viewModel = viewModel(anime)
+
+        composeRule.setContent { AnimeMiTVTheme { AnimeMiTVApp(viewModel) } }
+        waitForTag("anime-card-10")
+
+        composeRule.onNodeWithTag("anime-card-1").performKeyInput { pressKey(Key.DirectionDown) }
+
+        composeRule.onNodeWithTag("anime-card-6").assertIsFocused()
+        composeRule.onNodeWithTag("anime-card-1").assertIsDisplayed()
+    }
+
+    @Test
     fun animeSearchOpensWithInputFocusFiltersLiveClearsAndExits() {
         val first = Anime(1, "My Anime", "1", "2026", "夏", "")
         val second = Anime(2, "Another Show", "1", "2026", "夏", "")
