@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.7.0](https://github.com/LJ-works/AnimeMiTV/compare/v1.6.0...v1.7.0) (2026-08-15)
+
+
+### Features
+
+* **ui:** show app version in sidebar ([#63](https://github.com/LJ-works/AnimeMiTV/issues/63)) ([ccb889c](https://github.com/LJ-works/AnimeMiTV/commit/ccb889c95f7f5528f89d956b281f9b6c0cd0a85a))
+* 支持动画标题简繁与拼音搜索 ([#62](https://github.com/LJ-works/AnimeMiTV/issues/62)) ([6840cb7](https://github.com/LJ-works/AnimeMiTV/commit/6840cb72221d75b4273be36ffb915c216ba1a815))
+
+
+### Bug Fixes
+
+* **ui:** improve exit confirmation dialog ([#59](https://github.com/LJ-works/AnimeMiTV/issues/59)) ([5155586](https://github.com/LJ-works/AnimeMiTV/commit/515558637b900d4251685e1d453179a50ce65904))
+* **ui:** restore smooth anime grid scrolling ([#61](https://github.com/LJ-works/AnimeMiTV/issues/61)) ([46b4bd3](https://github.com/LJ-works/AnimeMiTV/commit/46b4bd3681b4209a3518dde248785ec56e0d23cc))
+
 ## [1.6.0](https://github.com/LJ-works/AnimeMiTV/compare/v1.5.1...v1.6.0) (2026-08-15)
 
 
