@@ -1,5 +1,6 @@
 package com.ljworks.animemitv
 
+import android.app.Activity
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -62,7 +63,13 @@ internal fun AnimeMiTVApp(viewModel: AnimeViewModel) {
     if (state.screen != AppScreen.AnimeList &&
         state.screen != AppScreen.SeasonalList &&
         state.screen != AppScreen.FollowedAnimeList
-    ) BackHandler { viewModel.back() }
+    ) {
+        BackHandler { viewModel.back() }
+    } else {
+        BackHandler(enabled = !state.isExitConfirmVisible && !state.isAnimeSearchActive) {
+            viewModel.requestExit()
+        }
+    }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -80,4 +87,15 @@ internal fun AnimeMiTVApp(viewModel: AnimeViewModel) {
             }
         }
     }
+    
+    if (state.isExitConfirmVisible) {
+        ExitConfirmDialog(
+            onDismiss = viewModel::dismissExit,
+            onConfirm = {
+                viewModel.dismissExit()
+                (context as? Activity)?.finish()
+            },
+        )
+    }
+
 }
