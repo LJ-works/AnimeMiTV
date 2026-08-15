@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 internal fun AnimeMiTVApp(
     viewModel: AnimeViewModel,
-    onExit: () -> Unit,
+    onExit: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
