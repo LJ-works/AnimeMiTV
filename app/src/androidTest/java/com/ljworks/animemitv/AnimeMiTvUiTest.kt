@@ -15,6 +15,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
@@ -27,6 +28,63 @@ import org.junit.Test
 
 @OptIn(ExperimentalTestApi::class)
 class AnimeMiTvUiTest {
+    @Test
+    fun firstTwoAnimeCardsMoveUpToSearchInsteadOfSidebar() {
+        val anime = (1..5).map { Anime(it, "测试动画 $it", "1", "2026", "夏", "") }
+        val viewModel = viewModel(anime)
+
+        composeRule.setContent { AnimeMiTVTheme { AnimeMiTVApp(viewModel) } }
+        waitForTag("anime-card-5")
+
+        for (id in 1..2) {
+            composeRule.onNodeWithTag("anime-card-$id").performSemanticsAction(SemanticsActions.RequestFocus)
+            composeRule.onNodeWithTag("anime-card-$id").performKeyInput { pressKey(Key.DirectionUp) }
+            composeRule.onNodeWithTag("anime-search-button").assertIsFocused()
+        }
+    }
+
+    @Test
+    fun animeSearchOpensWithInputFocusFiltersLiveClearsAndExits() {
+        val first = Anime(1, "My Anime", "1", "2026", "夏", "")
+        val second = Anime(2, "Another Show", "1", "2026", "夏", "")
+        val viewModel = viewModel(listOf(first, second))
+
+        composeRule.setContent { AnimeMiTVTheme { AnimeMiTVApp(viewModel) } }
+        waitForTag("anime-card-2")
+        composeRule.onNodeWithTag("anime-search-button").performSemanticsAction(SemanticsActions.OnClick)
+
+        composeRule.onNodeWithText("清除").assertIsDisplayed()
+        composeRule.onNodeWithText("取消").assertIsDisplayed()
+        composeRule.onNodeWithTag("anime-search-input").assertIsFocused().performTextInput("another")
+        composeRule.onNodeWithTag("anime-card-2").assertIsDisplayed()
+        assertEquals(0, composeRule.onAllNodesWithTag("anime-card-1").fetchSemanticsNodes().size)
+
+        composeRule.onNodeWithTag("anime-search-clear").performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithTag("anime-card-1").assertIsDisplayed()
+        composeRule.onNodeWithTag("anime-card-2").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("anime-search-input").performTextInput("missing")
+        composeRule.onNodeWithText("没有找到匹配的动画").assertIsDisplayed()
+        composeRule.onNodeWithTag("anime-search-close").performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithTag("anime-title").assertIsDisplayed()
+        composeRule.onNodeWithTag("anime-search-button").assertIsDisplayed()
+    }
+
+    @Test
+    fun animeSearchResultStillOpensEpisodes() {
+        val anime = Anime(1933, "测试动画", "連載中(01)", "2026", "夏", "")
+        val episode = Episode("1", "测试动画 [01]", "https://anime1.me/1", "request", "v1", "pt2")
+        val viewModel = viewModel(listOf(anime), listOf(episode))
+
+        composeRule.setContent { AnimeMiTVTheme { AnimeMiTVApp(viewModel) } }
+        composeRule.onNodeWithTag("anime-search-button").performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithTag("anime-search-input").performTextInput("动画")
+        composeRule.onNodeWithTag("anime-card-1933").performSemanticsAction(SemanticsActions.OnClick)
+
+        waitForText("剧集")
+        composeRule.onNodeWithText("测试动画 [01]").assertIsDisplayed()
+    }
+
     @get:Rule
     val composeRule = createComposeRule()
 
@@ -229,6 +287,7 @@ class AnimeMiTvUiTest {
         composeRule.onNodeWithTag("sidebar-followed").performSemanticsAction(SemanticsActions.OnClick)
         composeRule.onNodeWithText("关注的动画").assertIsDisplayed()
         composeRule.onNodeWithText("还没有关注的动画").assertIsDisplayed()
+        assertEquals(0, composeRule.onAllNodesWithTag("anime-search-button").fetchSemanticsNodes().size)
     }
 
     @Test

@@ -46,6 +46,8 @@ data class AppUiState(
     val followedAnime: List<Anime> = emptyList(),
     val focusedAnimeId: Int? = null,
     val focusedFollowedAnimeId: Int? = null,
+    val isAnimeSearchActive: Boolean = false,
+    val animeSearchQuery: String = "",
     val seasonalDiscovery: LoadState<List<AnimeSeason>> = LoadState.Idle,
     val currentSeason: AnimeSeason? = null,
     val selectedSeason: AnimeSeason? = null,
@@ -103,13 +105,42 @@ class AnimeViewModel(
 
     fun retryAnime() = loadAnime()
 
+    fun openAnimeSearch() {
+        if (_uiState.value.screen == AppScreen.AnimeList) {
+            _uiState.update { it.copy(isAnimeSearchActive = true) }
+        }
+    }
+
+    fun updateAnimeSearchQuery(query: String) {
+        if (_uiState.value.screen == AppScreen.AnimeList && _uiState.value.isAnimeSearchActive) {
+            _uiState.update { it.copy(animeSearchQuery = query) }
+        }
+    }
+
+    fun clearAnimeSearch() {
+        if (_uiState.value.screen == AppScreen.AnimeList && _uiState.value.isAnimeSearchActive) {
+            _uiState.update { it.copy(animeSearchQuery = "") }
+        }
+    }
+
+    fun closeAnimeSearch() {
+        _uiState.update { it.copy(isAnimeSearchActive = false, animeSearchQuery = "") }
+    }
+
     fun openFollowedAnime() {
         if (_uiState.value.screen == AppScreen.FollowedAnimeList) return
         seasonDiscoveryJob?.cancel()
         seasonScheduleJob?.cancel()
         episodeJob?.cancel()
         playbackJob?.cancel()
-        _uiState.update { it.copy(screen = AppScreen.FollowedAnimeList, unavailableMessage = null) }
+        _uiState.update {
+            it.copy(
+                screen = AppScreen.FollowedAnimeList,
+                unavailableMessage = null,
+                isAnimeSearchActive = false,
+                animeSearchQuery = "",
+            )
+        }
         if (_uiState.value.anime is LoadState.Idle) loadAnime()
     }
 
@@ -145,7 +176,14 @@ class AnimeViewModel(
     fun openSeasonal() {
         episodeJob?.cancel()
         playbackJob?.cancel()
-        _uiState.update { it.copy(screen = AppScreen.SeasonalList, unavailableMessage = null) }
+        _uiState.update {
+            it.copy(
+                screen = AppScreen.SeasonalList,
+                unavailableMessage = null,
+                isAnimeSearchActive = false,
+                animeSearchQuery = "",
+            )
+        }
         if (_uiState.value.seasonalDiscovery is LoadState.Content) {
             _uiState.value.selectedSeason?.let(::loadSeason)
             return
@@ -239,7 +277,14 @@ class AnimeViewModel(
         seasonScheduleJob?.cancel()
         episodeJob?.cancel()
         playbackJob?.cancel()
-        _uiState.update { it.copy(screen = AppScreen.AnimeList, unavailableMessage = null) }
+        _uiState.update {
+            it.copy(
+                screen = AppScreen.AnimeList,
+                unavailableMessage = null,
+                isAnimeSearchActive = false,
+                animeSearchQuery = "",
+            )
+        }
     }
 
     fun rememberAnimeFocus(id: Int) {
@@ -263,6 +308,8 @@ class AnimeViewModel(
             it.copy(
                 screen = AppScreen.EpisodeList,
                 selectedAnime = anime,
+                isAnimeSearchActive = false,
+                animeSearchQuery = "",
                 episodeSource = source,
                 episodes = LoadState.Loading,
                 episodeSort = EpisodeSort.NEWEST,

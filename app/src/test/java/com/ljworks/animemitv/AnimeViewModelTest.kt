@@ -4,6 +4,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -229,6 +230,30 @@ class AnimeViewModelTest {
     }
 
     @Test
+    fun animeSearchKeepsItsQueryAcrossReloadAndClearAndCloseDoNotFetch() {
+        val source = FakeDataSource(animeList = listOf(anime))
+        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+
+        viewModel.loadAnime()
+        viewModel.openAnimeSearch()
+        viewModel.updateAnimeSearchQuery("  anime  ")
+        viewModel.clearAnimeSearch()
+        viewModel.closeAnimeSearch()
+
+        assertEquals(1, source.fetchAnimeListCalls)
+        assertEquals("", viewModel.uiState.value.animeSearchQuery)
+        assertFalse(viewModel.uiState.value.isAnimeSearchActive)
+
+        viewModel.openAnimeSearch()
+        viewModel.updateAnimeSearchQuery("anime")
+        viewModel.retryAnime()
+
+        assertEquals(2, source.fetchAnimeListCalls)
+        assertEquals("anime", viewModel.uiState.value.animeSearchQuery)
+        assertTrue(viewModel.uiState.value.isAnimeSearchActive)
+    }
+
+    @Test
     fun openingAnimeLoadsAllEpisodePagesBeforeShowingContent() {
         val secondEpisode = episode.copy(id = "2", title = "相反的你和我 第二季 [02]")
         val dataSource = FakeDataSource(
@@ -362,10 +387,14 @@ class AnimeViewModelTest {
         private val failMorePage: Boolean = false,
         private val pages: Map<String, EpisodePage> = emptyMap(),
     ) : Anime1DataSource {
+        var fetchAnimeListCalls = 0
         var fetchEpisodeCalls = 0
         val resolvedEpisodes = mutableListOf<Episode>()
 
-        override suspend fun fetchAnimeList() = animeList
+        override suspend fun fetchAnimeList(): List<Anime> {
+            fetchAnimeListCalls++
+            return animeList
+        }
 
         override suspend fun fetchEpisodes(anime: Anime, pageUrl: String): EpisodePage {
             fetchEpisodeCalls++

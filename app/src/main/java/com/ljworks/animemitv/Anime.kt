@@ -62,6 +62,13 @@ data class PlayableSource(
     val headers: Map<String, String> = emptyMap(),
 )
 
+fun filterAnimeByTitle(source: List<Anime>, query: String): List<Anime> {
+    val normalizedQuery = query.trim()
+    return if (normalizedQuery.isEmpty()) source else source.filter {
+        it.title.contains(normalizedQuery, ignoreCase = true)
+    }
+}
+
 fun parseAnimeList(json: String): List<Anime> {
     val rows = JSONArray(json)
     return buildList {
