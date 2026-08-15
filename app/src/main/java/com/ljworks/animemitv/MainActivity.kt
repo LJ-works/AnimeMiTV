@@ -1,6 +1,5 @@
 package com.ljworks.animemitv
 
-import android.app.Activity
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -43,7 +42,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             AnimeMiTVTheme {
-                AnimeMiTVApp(animeViewModel)
+                AnimeMiTVApp(animeViewModel, onExit = ::finish)
             }
         }
     }
@@ -51,7 +50,10 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-internal fun AnimeMiTVApp(viewModel: AnimeViewModel) {
+internal fun AnimeMiTVApp(
+    viewModel: AnimeViewModel,
+    onExit: () -> Unit,
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     LaunchedEffect(state.followedAnimeSaveError) {
@@ -87,15 +89,14 @@ internal fun AnimeMiTVApp(viewModel: AnimeViewModel) {
             }
         }
     }
-    
+
     if (state.isExitConfirmVisible) {
         ExitConfirmDialog(
             onDismiss = viewModel::dismissExit,
             onConfirm = {
                 viewModel.dismissExit()
-                (context as? Activity)?.finish()
+                onExit()
             },
         )
     }
-
 }
