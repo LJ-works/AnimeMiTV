@@ -1,5 +1,6 @@
 package com.ljworks.animemitv
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -71,6 +72,7 @@ class AnimeViewModel(
     private val dataSource: Anime1DataSource,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
     private val followedAnimeStore: FollowedAnimeStore = EmptyFollowedAnimeStore,
+    private val elapsedRealtimeMillis: () -> Long = SystemClock::elapsedRealtime,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         AppUiState(followedAnimeIds = followedAnimeStore.load()),
@@ -84,6 +86,7 @@ class AnimeViewModel(
     private var playbackJob: Job? = null
     private var unavailableJob: Job? = null
     private val seasonalCache = mutableMapOf<String, AnimeSchedule>()
+    private val episodeCache = mutableMapOf<String, CachedEpisodes>()
 
     fun requestExit() {
         _uiState.update {
@@ -332,22 +335,25 @@ class AnimeViewModel(
     fun openAnime(anime: Anime, source: EpisodeSource = EpisodeSource.ANIME_LIST) {
         episodeJob?.cancel()
         playbackJob?.cancel()
+        val cached = freshCachedEpisodes(anime)
         _uiState.update {
             it.copy(
                 screen = AppScreen.EpisodeList,
                 selectedAnime = anime,
                 episodeSource = source,
-                episodes = LoadState.Loading,
+                episodes = if (cached == null) LoadState.Loading else LoadState.Content(cached),
                 episodeSort = EpisodeSort.NEWEST,
                 focusedEpisodeId = null,
                 selectedEpisode = null,
                 playback = LoadState.Idle,
             )
         }
+        if (cached != null) return
         episodeJob = scope.launch {
             try {
                 val episodes = loadAllEpisodes(anime)
                 if (!isCurrentAnime(anime.id)) return@launch
+                episodeCache[episodeCacheKey(anime)] = CachedEpisodes(episodes, elapsedRealtimeMillis())
                 _uiState.update { it.copy(episodes = LoadState.Content(episodes)) }
             } catch (error: CancellationException) {
                 throw error
@@ -474,6 +480,17 @@ class AnimeViewModel(
         return episodes.distinctBy(Episode::id)
     }
 
+    private fun episodeCacheKey(anime: Anime): String = "${anime.id}|${anime.categoryUrl}"
+
+    private fun freshCachedEpisodes(anime: Anime): List<Episode>? {
+        val cached = episodeCache[episodeCacheKey(anime)] ?: return null
+        if (elapsedRealtimeMillis() - cached.loadedAtMillis >= EPISODE_CACHE_TTL_MILLIS) {
+            episodeCache.remove(episodeCacheKey(anime))
+            return null
+        }
+        return cached.episodes
+    }
+
     private fun isCurrentAnime(animeId: Int): Boolean =
         _uiState.value.screen == AppScreen.EpisodeList && _uiState.value.selectedAnime?.id == animeId
 
@@ -491,5 +508,15 @@ class AnimeViewModel(
         playbackJob?.cancel()
         scope.cancel()
         super.onCleared()
+    }
+
+    private data class CachedEpisodes(
+        val episodes: List<Episode>,
+        val loadedAtMillis: Long,
+    )
+
+    private companion object {
+        /** 剧集列表进程内缓存的存活时间；短 TTL 用于降低播放签名陈旧的风险。 */
+        const val EPISODE_CACHE_TTL_MILLIS = 10 * 60 * 1000L
     }
 }

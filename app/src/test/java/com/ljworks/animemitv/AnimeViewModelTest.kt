@@ -14,7 +14,7 @@ class AnimeViewModelTest {
 
     @Test
     fun rootBackRequestShowsExitConfirmation() {
-        val viewModel = AnimeViewModel(FakeDataSource(), CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(FakeDataSource(), CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.requestExit()
 
@@ -23,7 +23,7 @@ class AnimeViewModelTest {
 
     @Test
     fun dismissingExitConfirmationHidesIt() {
-        val viewModel = AnimeViewModel(FakeDataSource(), CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(FakeDataSource(), CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.requestExit()
         viewModel.dismissExit()
@@ -33,7 +33,7 @@ class AnimeViewModelTest {
 
     @Test
     fun nonRootScreenDoesNotShowExitConfirmation() {
-        val viewModel = AnimeViewModel(FakeDataSource(), CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(FakeDataSource(), CoroutineScope(Dispatchers.Unconfined))
         viewModel.openAnime(anime)
 
         viewModel.requestExit()
@@ -44,7 +44,7 @@ class AnimeViewModelTest {
     @Test
     fun openingSeasonalDiscoversTwentyOneSeasonsAndLoadsOnlyTheSelectedSchedule() {
         val source = SeasonalFake()
-        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(source, CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.openSeasonal()
 
@@ -57,7 +57,7 @@ class AnimeViewModelTest {
     @Test
     fun successfulSeasonalScheduleIsCachedButFailureCanBeRetried() {
         val source = SeasonalFake(failFirstSchedule = true)
-        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(source, CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.openSeasonal()
         assertTrue(viewModel.uiState.value.seasonalSchedule is LoadState.Error)
@@ -71,7 +71,7 @@ class AnimeViewModelTest {
     @Test
     fun seasonalAvailableAnimeUsesCategoryLinkAndBackReturnsToSchedule() {
         val source = SeasonalFake()
-        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(source, CoroutineScope(Dispatchers.Unconfined))
         viewModel.openSeasonal()
         val seasonalAnime = (viewModel.uiState.value.seasonalSchedule as LoadState.Content).value.days[0].single()
 
@@ -87,7 +87,7 @@ class AnimeViewModelTest {
     @Test
     fun seasonalUnavailableAnimeDoesNotNavigate() {
         val source = SeasonalFake()
-        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(source, CoroutineScope(Dispatchers.Unconfined))
         viewModel.openSeasonal()
         val unavailable = (viewModel.uiState.value.seasonalSchedule as LoadState.Content).value.days[1].single()
 
@@ -101,7 +101,7 @@ class AnimeViewModelTest {
     fun followedAnimeAreRestoredAndKeepTheAnimeListOrder() {
         val first = anime.copy(id = 1)
         val second = anime.copy(id = 2)
-        val viewModel = AnimeViewModel(
+        val viewModel = createViewModel(
             FakeDataSource(animeList = listOf(first, second)),
             CoroutineScope(Dispatchers.Unconfined),
             FakeFollowedAnimeStore(setOf(2, 99, 1)),
@@ -118,7 +118,7 @@ class AnimeViewModelTest {
     fun hiddenFollowedAnimeReturnsWhenTheSourceListContainsItAgain() {
         val source = MutableAnimeListDataSource()
         val store = FakeFollowedAnimeStore(setOf(anime.id))
-        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined), store)
+        val viewModel = createViewModel(source, CoroutineScope(Dispatchers.Unconfined), store)
 
         viewModel.loadAnime()
         assertEquals(emptyList<Anime>(), viewModel.uiState.value.followedAnime)
@@ -133,7 +133,7 @@ class AnimeViewModelTest {
     @Test
     fun followingAndUnfollowingAnimePersistsAndUpdatesTheList() {
         val store = FakeFollowedAnimeStore()
-        val viewModel = AnimeViewModel(
+        val viewModel = createViewModel(
             FakeDataSource(animeList = listOf(anime)),
             CoroutineScope(Dispatchers.Unconfined),
             store,
@@ -155,7 +155,7 @@ class AnimeViewModelTest {
     @Test
     fun switchingToFollowedAnimeCancelsEpisodeLoading() {
         val source = DeferredDataSource()
-        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(source, CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.openAnime(anime)
         viewModel.openFollowedAnime()
@@ -166,7 +166,7 @@ class AnimeViewModelTest {
 
     @Test
     fun followedAnimeFocusIsKeptSeparatelyFromTheMainList() {
-        val viewModel = AnimeViewModel(
+        val viewModel = createViewModel(
             FakeDataSource(animeList = listOf(anime)),
             CoroutineScope(Dispatchers.Unconfined),
             FakeFollowedAnimeStore(setOf(anime.id)),
@@ -183,7 +183,7 @@ class AnimeViewModelTest {
 
     @Test
     fun followedAnimeReturnsToTheFollowedList() {
-        val viewModel = AnimeViewModel(
+        val viewModel = createViewModel(
             FakeDataSource(animeList = listOf(anime)),
             CoroutineScope(Dispatchers.Unconfined),
             FakeFollowedAnimeStore(setOf(anime.id)),
@@ -199,7 +199,7 @@ class AnimeViewModelTest {
 
     @Test
     fun unfollowedAnimeDisappearsFromTheFollowedListAfterReturning() {
-        val viewModel = AnimeViewModel(
+        val viewModel = createViewModel(
             FakeDataSource(animeList = listOf(anime)),
             CoroutineScope(Dispatchers.Unconfined),
             FakeFollowedAnimeStore(setOf(anime.id)),
@@ -217,7 +217,7 @@ class AnimeViewModelTest {
     @Test
     fun failedFollowSaveKeepsTheStateAndReportsAnError() {
         val store = FakeFollowedAnimeStore(saveSucceeds = false)
-        val viewModel = AnimeViewModel(
+        val viewModel = createViewModel(
             FakeDataSource(animeList = listOf(anime)),
             CoroutineScope(Dispatchers.Unconfined),
             store,
@@ -233,7 +233,7 @@ class AnimeViewModelTest {
 
     @Test
     fun followedSaveErrorCanBeClearedAfterShowingFeedback() {
-        val viewModel = AnimeViewModel(
+        val viewModel = createViewModel(
             FakeDataSource(animeList = listOf(anime)),
             CoroutineScope(Dispatchers.Unconfined),
             FakeFollowedAnimeStore(saveSucceeds = false),
@@ -249,7 +249,7 @@ class AnimeViewModelTest {
     @Test
     fun loadingAnimeExposesTheCompleteList() {
         val animeList = (1..21).map { anime.copy(id = it) }
-        val viewModel = AnimeViewModel(FakeDataSource(animeList = animeList), CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(FakeDataSource(animeList = animeList), CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.loadAnime()
 
@@ -261,7 +261,7 @@ class AnimeViewModelTest {
     @Test
     fun animeSearchKeepsItsQueryAcrossReloadAndClearAndCloseDoNotFetch() {
         val source = FakeDataSource(animeList = listOf(anime))
-        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(source, CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.loadAnime()
         viewModel.openAnimeSearch()
@@ -285,7 +285,7 @@ class AnimeViewModelTest {
     @Test
     fun animeSearchContextSurvivesOpeningAnimeAndBackWithoutReloadingList() {
         val source = FakeDataSource(animeList = listOf(anime))
-        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(source, CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.loadAnime()
         viewModel.openAnimeSearch()
@@ -305,7 +305,7 @@ class AnimeViewModelTest {
 
     @Test
     fun restoredAnimeFocusConsumesTheSearchFocusSignal() {
-        val viewModel = AnimeViewModel(
+        val viewModel = createViewModel(
             FakeDataSource(animeList = listOf(anime)),
             CoroutineScope(Dispatchers.Unconfined),
         )
@@ -323,7 +323,7 @@ class AnimeViewModelTest {
     fun animeSearchContextKeepsUnavailableFocusForUiFallback() {
         val first = anime.copy(id = 1, title = "第一部")
         val second = anime.copy(id = 2, title = "第二部")
-        val viewModel = AnimeViewModel(
+        val viewModel = createViewModel(
             FakeDataSource(animeList = listOf(first, second)),
             CoroutineScope(Dispatchers.Unconfined),
         )
@@ -348,7 +348,7 @@ class AnimeViewModelTest {
                 "page-2" to EpisodePage(listOf(secondEpisode), null),
             ),
         )
-        val viewModel = AnimeViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.openAnime(anime)
         viewModel.rememberEpisodeFocus(episode.id)
@@ -363,6 +363,114 @@ class AnimeViewModelTest {
     }
 
     @Test
+    fun reopeningAnimeWithinCacheTtlReusesEpisodesWithoutRequests() {
+        val secondEpisode = episode.copy(id = "2", title = "相反的你和我 第二季 [02]")
+        val dataSource = FakeDataSource(
+            pages = mapOf(
+                anime.categoryUrl to EpisodePage(listOf(episode), "page-2"),
+                "page-2" to EpisodePage(listOf(secondEpisode, episode), null),
+            ),
+        )
+        val clock = FakeClock()
+        val viewModel = createViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined), clock = clock)
+
+        viewModel.openAnime(anime)
+        viewModel.toggleEpisodeSort()
+        viewModel.rememberEpisodeFocus(episode.id)
+        viewModel.back()
+        clock.advance(9 * 60 * 1000L)
+        viewModel.openAnime(anime)
+
+        val state = viewModel.uiState.value
+        assertEquals(AppScreen.EpisodeList, state.screen)
+        assertEquals(LoadState.Content(listOf(episode, secondEpisode)), state.episodes)
+        assertEquals(EpisodeSort.NEWEST, state.episodeSort)
+        assertEquals(null, state.focusedEpisodeId)
+        assertEquals(2, dataSource.fetchEpisodeCalls)
+    }
+
+    @Test
+    fun cachedEpisodesOfOneAnimeAreNotUsedForAnother() {
+        val other = anime.copy(id = 2000, title = "动画 B")
+        val dataSource = FakeDataSource()
+        val viewModel = createViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
+
+        viewModel.openAnime(anime)
+        viewModel.openAnime(other)
+
+        assertEquals(2, dataSource.fetchEpisodeCalls)
+    }
+
+    @Test
+    fun expiredEpisodeCacheIsReloadedAndReplaced() {
+        val dataSource = FakeDataSource()
+        val clock = FakeClock()
+        val viewModel = createViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined), clock = clock)
+
+        viewModel.openAnime(anime)
+        viewModel.back()
+        clock.advance(10 * 60 * 1000L)
+        viewModel.openAnime(anime)
+        assertEquals(2, dataSource.fetchEpisodeCalls)
+
+        viewModel.back()
+        viewModel.openAnime(anime)
+        assertEquals(2, dataSource.fetchEpisodeCalls)
+    }
+
+    @Test
+    fun failedEpisodeLoadIsNotCached() {
+        val dataSource = FakeDataSource(nextPageUrl = "page-2", failMorePage = true)
+        val viewModel = createViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
+
+        viewModel.openAnime(anime)
+        assertTrue(viewModel.uiState.value.episodes is LoadState.Error)
+
+        viewModel.retryEpisodes()
+
+        assertTrue(viewModel.uiState.value.episodes is LoadState.Error)
+        assertEquals(4, dataSource.fetchEpisodeCalls)
+    }
+
+    @Test
+    fun cancelledOrStaleEpisodeLoadIsNotCached() {
+        val animeB = anime.copy(id = 2000, title = "动画 B")
+        val source = DeferredDataSource()
+        val viewModel = createViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+
+        viewModel.openAnime(anime)
+        viewModel.openAnime(animeB)
+        source.requests.getValue(animeB.id).complete(EpisodePage(listOf(episode.copy(id = "B")), null))
+        source.requests.getValue(anime.id).complete(EpisodePage(listOf(episode.copy(id = "A")), null))
+        val callsBeforeReopen = source.fetchCalls
+
+        viewModel.openAnime(anime)
+
+        assertEquals(callsBeforeReopen + 1, source.fetchCalls)
+        assertEquals("A", (viewModel.uiState.value.episodes as LoadState.Content).value.single().id)
+    }
+
+    @Test
+    fun playbackRetryFromCachedEpisodesRefreshesOnlyTheSourcePage() {
+        val refreshed = episode.copy(apiRequest = "fresh-request")
+        val dataSource = FakeDataSource(episode = refreshed)
+        val viewModel = createViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
+
+        viewModel.openAnime(anime)
+        viewModel.back()
+        viewModel.openAnime(anime)
+        assertEquals(1, dataSource.fetchEpisodeCalls)
+
+        viewModel.playEpisode(episode)
+        viewModel.retryPlayback()
+
+        assertEquals(2, dataSource.fetchEpisodeCalls)
+        assertEquals(listOf(anime.categoryUrl, episode.sourcePageUrl), dataSource.requestedPageUrls)
+        assertEquals("fresh-request", dataSource.resolvedEpisodes.last().apiRequest)
+        assertTrue(viewModel.uiState.value.playback is LoadState.Content)
+    }
+
+    @Test
     fun repeatedEpisodePageStopsLoadingWithoutDuplicatingEpisodes() {
         val secondEpisode = episode.copy(id = "2", title = "相反的你和我 第二季 [02]")
         val dataSource = FakeDataSource(
@@ -371,7 +479,7 @@ class AnimeViewModelTest {
                 "page-2" to EpisodePage(listOf(secondEpisode), "page-2"),
             ),
         )
-        val viewModel = AnimeViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.openAnime(anime)
 
@@ -382,7 +490,7 @@ class AnimeViewModelTest {
     @Test
     fun episodePageFailureDoesNotExposePartialEpisodes() {
         val dataSource = FakeDataSource(nextPageUrl = "page-2", failMorePage = true)
-        val viewModel = AnimeViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.openAnime(anime)
 
@@ -394,7 +502,7 @@ class AnimeViewModelTest {
     fun playbackRetryRefreshesEpisodeSignatureBeforeResolving() {
         val refreshed = episode.copy(apiRequest = "fresh-request")
         val dataSource = FakeDataSource(episode = refreshed)
-        val viewModel = AnimeViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.openAnime(anime)
         viewModel.playEpisode(episode)
@@ -408,7 +516,7 @@ class AnimeViewModelTest {
     @Test
     fun playbackRetryDoesNotReuseOldSignatureWhenEpisodeDisappears() {
         val dataSource = FakeDataSource(episode = null)
-        val viewModel = AnimeViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(dataSource, CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.openAnime(anime)
         viewModel.playEpisode(episode)
@@ -421,7 +529,7 @@ class AnimeViewModelTest {
 
     @Test
     fun playbackErrorShowsRecoveryStateAndBackReturnsToEpisodes() {
-        val viewModel = AnimeViewModel(FakeDataSource(), CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(FakeDataSource(), CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.openAnime(anime)
         viewModel.playEpisode(episode)
@@ -436,7 +544,7 @@ class AnimeViewModelTest {
     fun oldAnimeRequestCannotOverwriteNewAnime() {
         val animeB = anime.copy(id = 2000, title = "动画 B")
         val source = DeferredDataSource()
-        val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
+        val viewModel = createViewModel(source, CoroutineScope(Dispatchers.Unconfined))
 
         viewModel.openAnime(anime)
         viewModel.openAnime(animeB)
@@ -446,6 +554,23 @@ class AnimeViewModelTest {
         val state = viewModel.uiState.value
         assertEquals(animeB, state.selectedAnime)
         assertEquals("B", (state.episodes as LoadState.Content).value.single().id)
+    }
+
+    private fun createViewModel(
+        dataSource: Anime1DataSource,
+        scope: CoroutineScope,
+        followedAnimeStore: FollowedAnimeStore = EmptyFollowedAnimeStore,
+        clock: FakeClock = FakeClock(),
+    ) = AnimeViewModel(dataSource, scope, followedAnimeStore, clock::now)
+
+    private class FakeClock {
+        var millis = 0L
+
+        fun advance(millis: Long) {
+            this.millis += millis
+        }
+
+        fun now(): Long = millis
     }
 
     private class MutableAnimeListDataSource : Anime1DataSource {
@@ -475,6 +600,7 @@ class AnimeViewModelTest {
     ) : Anime1DataSource {
         var fetchAnimeListCalls = 0
         var fetchEpisodeCalls = 0
+        val requestedPageUrls = mutableListOf<String>()
         val resolvedEpisodes = mutableListOf<Episode>()
 
         override suspend fun fetchAnimeList(): List<Anime> {
@@ -484,6 +610,7 @@ class AnimeViewModelTest {
 
         override suspend fun fetchEpisodes(anime: Anime, pageUrl: String): EpisodePage {
             fetchEpisodeCalls++
+            requestedPageUrls += pageUrl
             if (failMorePage && pageUrl == nextPageUrl) error("更多剧集加载失败")
             return pages[pageUrl] ?: EpisodePage(listOfNotNull(episode), nextPageUrl)
         }
@@ -543,10 +670,12 @@ class AnimeViewModelTest {
     private class DeferredDataSource : Anime1DataSource {
         val requests = mutableMapOf<Int, CompletableDeferred<EpisodePage>>()
         val cancelledAnimeIds = mutableSetOf<Int>()
+        var fetchCalls = 0
 
         override suspend fun fetchAnimeList() = emptyList<Anime>()
 
         override suspend fun fetchEpisodes(anime: Anime, pageUrl: String): EpisodePage = try {
+            fetchCalls++
             requests.getOrPut(anime.id) { CompletableDeferred() }.await()
         } finally {
             cancelledAnimeIds += anime.id
