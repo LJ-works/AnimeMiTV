@@ -32,6 +32,16 @@ class AnimeViewModelTest {
     }
 
     @Test
+    fun nonRootScreenDoesNotShowExitConfirmation() {
+        val viewModel = AnimeViewModel(FakeDataSource(), CoroutineScope(Dispatchers.Unconfined))
+        viewModel.openAnime(anime)
+
+        viewModel.requestExit()
+
+        assertFalse(viewModel.uiState.value.isExitConfirmVisible)
+    }
+
+    @Test
     fun openingSeasonalDiscoversTwentyOneSeasonsAndLoadsOnlyTheSelectedSchedule() {
         val source = SeasonalFake()
         val viewModel = AnimeViewModel(source, CoroutineScope(Dispatchers.Unconfined))
