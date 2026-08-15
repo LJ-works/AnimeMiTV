@@ -157,7 +157,7 @@ private fun EpisodeGrid(
                         }
                     Card(
                         onClick = { viewModel.playEpisode(episode) },
-                        modifier = cardModifier.testTag("episode-card-${episode.id}").height(100.dp).fillMaxWidth(),
+                        modifier = cardModifier.testTag("episode-card-${episode.id}").height(110.dp).fillMaxWidth(),
                         border = CardDefaults.border(
                             focusedBorder = Border(
                                 border = BorderStroke(3.dp, Color(0xFF8FE3E0)),
@@ -171,13 +171,13 @@ private fun EpisodeGrid(
                         shape = CardDefaults.shape(shape = RoundedCornerShape(12.dp)),
                     ) {
                         Column(
-                            modifier = Modifier.fillMaxSize().padding(14.dp),
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 8.dp),
                             verticalArrangement = Arrangement.Top,
                         ) {
                             Text(
                                 episode.title,
                                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 18.sp),
-                                maxLines = 4,
+                                maxLines = 5,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
