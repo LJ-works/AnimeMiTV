@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -35,6 +36,10 @@ internal fun SideBar(
     onFollowed: () -> Unit,
     selected: AppScreen,
 ) {
+    val context = LocalContext.current
+    val versionName = remember(context) {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName
+    }
     Column(
         modifier = Modifier.width(90.dp).fillMaxHeight().testTag("sidebar"),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -64,6 +69,13 @@ internal fun SideBar(
         ) {
             Text("关注", style = MaterialTheme.typography.bodyMedium)
         }
+        Spacer(Modifier.weight(1f))
+        Text(
+            "v$versionName",
+            modifier = Modifier.fillMaxWidth().testTag("sidebar-version"),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
 }
 

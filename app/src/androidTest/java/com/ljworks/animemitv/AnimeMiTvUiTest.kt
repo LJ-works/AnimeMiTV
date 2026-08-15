@@ -2,11 +2,13 @@ package com.ljworks.animemitv
 
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertWidthIsEqualTo
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -18,6 +20,7 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import com.ljworks.animemitv.ui.theme.AnimeMiTVTheme
@@ -231,6 +234,12 @@ class AnimeMiTvUiTest {
         composeRule.onNodeWithTag("screen-background").assertIsDisplayed()
         composeRule.onNodeWithTag("sidebar").assertWidthIsEqualTo(90.dp)
         composeRule.onNodeWithText("AnimeMiTV").assertIsDisplayed()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val versionName = context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        val version = composeRule.onNodeWithTag("sidebar-version")
+        version.assertIsDisplayed().assert(hasClickAction().not())
+        composeRule.onNodeWithText("v$versionName").assertIsDisplayed()
+        assertFalse(version.fetchSemanticsNode().config.contains(SemanticsActions.RequestFocus))
         composeRule.onNodeWithTag("sidebar-animation").assertIsDisplayed()
         composeRule.onNodeWithTag("anime-top-bar").assertHeightIsEqualTo(56.dp)
         composeRule.onNodeWithTag("anime-title").assertIsDisplayed()
