@@ -33,6 +33,7 @@ class MainActivity : ComponentActivity() {
                 AnimeViewModel(
                     Anime1HttpDataSource(),
                     followedAnimeStore = SharedPreferencesFollowedAnimeStore(this@MainActivity),
+                    episodeProgressStore = SharedPreferencesEpisodeProgressStore(this@MainActivity),
                 ) as T
         }
     }

@@ -29,6 +29,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.DefaultTimeBar
 import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 class AnimePlayerView(context: Context, attrs: AttributeSet?) : PlayerView(context, attrs) {
@@ -50,6 +52,42 @@ class AnimePlayerView(context: Context, attrs: AttributeSet?) : PlayerView(conte
     }
 }
 
+internal class PlaybackProgressRecorder(
+    private val save: (positionMillis: Long, durationMillis: Long) -> Unit,
+) {
+    private var started = false
+    private var ended = false
+    private var lastPositionMillis = 0L
+    private var lastDurationMillis = 0L
+
+    fun playing(positionMillis: Long, durationMillis: Long) {
+        started = true
+        ended = false
+        record(positionMillis, durationMillis)
+    }
+
+    fun stopped(positionMillis: Long, durationMillis: Long) {
+        if (started && !ended) record(positionMillis, durationMillis)
+    }
+
+    fun ended(durationMillis: Long) {
+        if (!started) return
+        ended = true
+        record(0, durationMillis)
+    }
+
+    fun dispose(positionMillis: Long, durationMillis: Long, isPlaying: Boolean) {
+        if (!started) return
+        if (isPlaying) record(positionMillis, durationMillis) else save(lastPositionMillis, lastDurationMillis)
+    }
+
+    private fun record(positionMillis: Long, durationMillis: Long) {
+        lastPositionMillis = positionMillis.coerceAtLeast(0)
+        lastDurationMillis = durationMillis.coerceAtLeast(0)
+        save(lastPositionMillis, lastDurationMillis)
+    }
+}
+
 @Composable
 internal fun PlayerScreen(state: AppUiState, viewModel: AnimeViewModel) {
     BackHandler { viewModel.back() }
@@ -61,10 +99,25 @@ internal fun PlayerScreen(state: AppUiState, viewModel: AnimeViewModel) {
             if (episodeId == null) {
                 RetryMessage("没有找到当前剧集", viewModel::retryPlayback, "返回", viewModel::back)
             } else {
-                VideoPlayer(playback.value, episodeId, viewModel::playbackError)
+                VideoPlayer(
+                    source = playback.value,
+                    episodeId = episodeId,
+                    progress = state.episodeProgress[episodeId],
+                    onProgress = { position, duration ->
+                        viewModel.saveEpisodeProgress(episodeId, position, duration)
+                    },
+                    onError = viewModel::playbackError,
+                )
             }
         }
     }
+}
+
+internal fun preparePlayer(player: Player, source: PlayableSource, progress: EpisodeProgress?) {
+    player.setMediaItem(MediaItem.fromUri(source.url))
+    player.seekTo(progress?.positionMillis ?: 0)
+    player.prepare()
+    player.playWhenReady = true
 }
 
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
@@ -72,6 +125,8 @@ internal fun PlayerScreen(state: AppUiState, viewModel: AnimeViewModel) {
 private fun VideoPlayer(
     source: PlayableSource,
     episodeId: String,
+    progress: EpisodeProgress?,
+    onProgress: (positionMillis: Long, durationMillis: Long) -> Unit,
     onError: (String, String) -> Unit,
 ) {
     val context = LocalContext.current
@@ -83,9 +138,22 @@ private fun VideoPlayer(
         val dataSourceFactory = DefaultHttpDataSource.Factory().setDefaultRequestProperties(source.headers)
         ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory)).build()
     }
+    val progressRecorder = remember(player, episodeId) { PlaybackProgressRecorder(onProgress) }
     DisposableEffect(player, lifecycleOwner, episodeId) {
         var resumePlaybackOnStart = false
         val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying) {
+                    progressRecorder.playing(player.currentPosition, player.duration)
+                } else {
+                    progressRecorder.stopped(player.currentPosition, player.duration)
+                }
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) progressRecorder.ended(player.duration)
+            }
+
             override fun onPlayerError(error: PlaybackException) {
                 resumePlaybackOnStart = false
                 onError(episodeId, error.message ?: "视频播放失败")
@@ -111,13 +179,18 @@ private fun VideoPlayer(
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
             player.removeListener(listener)
+            progressRecorder.dispose(player.currentPosition, player.duration, player.isPlaying)
             player.release()
         }
     }
     LaunchedEffect(source.url) {
-        player.setMediaItem(MediaItem.fromUri(source.url))
-        player.prepare()
-        player.playWhenReady = true
+        preparePlayer(player, source, progress)
+    }
+    LaunchedEffect(player, episodeId) {
+        while (isActive) {
+            delay(10_000)
+            if (player.isPlaying) progressRecorder.playing(player.currentPosition, player.duration)
+        }
     }
     AndroidView(
         factory = {

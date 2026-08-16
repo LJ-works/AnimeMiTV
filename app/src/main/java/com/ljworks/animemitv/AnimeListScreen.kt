@@ -281,7 +281,7 @@ private fun AnimeGrid(
 private fun AnimeCard(anime: Anime, modifier: Modifier, onClick: () -> Unit) {
     Card(
         onClick = onClick,
-        modifier = modifier.testTag("anime-card-${anime.id}").height(150.dp).fillMaxWidth(),
+        modifier = modifier.testTag("anime-card-${anime.id}").height(130.dp).fillMaxWidth(),
         border = CardDefaults.border(
             focusedBorder = Border(
                 border = BorderStroke(3.dp, Color(0xFF8FE3E0)),
@@ -297,8 +297,9 @@ private fun AnimeCard(anime: Anime, modifier: Modifier, onClick: () -> Unit) {
         Column(modifier = Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 anime.title,
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 18.sp),
-                maxLines = 4,
+                modifier = Modifier.testTag("anime-card-title-${anime.id}"),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 16.sp),
+                maxLines = 5,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(anime.episodeStatus, style = MaterialTheme.typography.bodySmall)

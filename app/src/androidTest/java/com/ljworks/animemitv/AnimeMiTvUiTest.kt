@@ -242,6 +242,7 @@ class AnimeMiTvUiTest {
         assertFalse(version.fetchSemanticsNode().config.contains(SemanticsActions.RequestFocus))
         composeRule.onNodeWithTag("sidebar-animation").assertIsDisplayed()
         composeRule.onNodeWithTag("anime-top-bar").assertHeightIsEqualTo(56.dp)
+        composeRule.onNodeWithTag("anime-card-1933").assertHeightIsEqualTo(130.dp)
         composeRule.onNodeWithTag("anime-title").assertIsDisplayed()
         composeRule.onNodeWithText("测试动画").assertIsDisplayed()
         assertEquals(0, composeRule.onAllNodesWithTag("anime-bottom-bar").fetchSemanticsNodes().size)
@@ -412,6 +413,45 @@ class AnimeMiTvUiTest {
     }
 
     @Test
+    fun episodeCardsShowSavedWatchProgress() {
+        val anime = Anime(1933, "测试动画", "連載中(02)", "2026", "夏", "")
+        val episodes = (1..2).map {
+            Episode("$it", "测试动画 [$it]", "https://anime1.me/$it", "request", "v1", "pt2")
+        }
+        val viewModel = viewModel(
+            listOf(anime),
+            episodes,
+            episodeProgress = mapOf("1" to EpisodeProgress(30_000, 60_000)),
+        )
+
+        composeRule.setContent { AnimeMiTVTheme { AnimeMiTVApp(viewModel) } }
+        composeRule.onNodeWithTag("anime-card-1933").performSemanticsAction(SemanticsActions.OnClick)
+        waitForTag("episode-card-1")
+
+        composeRule.onNodeWithTag("episode-watched-1").assertIsDisplayed()
+        composeRule.onNodeWithTag("episode-progress-1").assertIsDisplayed()
+        assertEquals(0, composeRule.onAllNodesWithTag("episode-watched-2").fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun longAnimeTitleUsesFiveLines() {
+        val anime = Anime(
+            1933,
+            "这是一个很长的动画标题需要占满五行才能显示更多文字".repeat(5),
+            "連載中(01)",
+            "2026",
+            "夏",
+            "",
+        )
+        val viewModel = viewModel(listOf(anime))
+
+        composeRule.setContent { AnimeMiTVTheme { AnimeMiTVApp(viewModel) } }
+        waitForTag("anime-card-title-1933")
+
+        composeRule.onNodeWithTag("anime-card-title-1933").assertHeightIsEqualTo(80.dp)
+    }
+
+    @Test
     fun followedAnimePageShowsItsTitleAndSidebarEntry() {
         val viewModel = viewModel(emptyList())
 
@@ -545,6 +585,7 @@ class AnimeMiTvUiTest {
         episodes: List<Episode> = emptyList(),
         playbackReady: Boolean = true,
         followedAnimeIds: Set<Int> = emptySet(),
+        episodeProgress: Map<String, EpisodeProgress> = emptyMap(),
     ) = AnimeViewModel(
         object : Anime1DataSource {
             override suspend fun fetchAnimeList() = animeList
@@ -559,6 +600,11 @@ class AnimeMiTvUiTest {
             override fun load() = followedAnimeIds
 
             override fun save(ids: Set<Int>) = true
+        },
+        episodeProgressStore = object : EpisodeProgressStore {
+            override fun load() = episodeProgress
+
+            override fun save(episodeId: String, progress: EpisodeProgress) = Unit
         },
     )
 }

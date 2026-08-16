@@ -11,6 +11,7 @@ AnimeMiTV 是一个面向 Google TV / Android TV 的第三方 Anime1 客户端�
 - 在完整动画列表上连续滚动，支持遥控器焦点导航。
 - 在完整动画列表中按标题本地搜索，支持连续子字符串匹配、简繁互搜、普通话拼音及连续音节前缀（如 `Dhu`）；可清除搜索并恢复搜索结果焦点。
 - 加载动画分类页面的全部分页，展示并排序完整剧集列表。
+- 在剧集卡片标出本机看过状态与观看进度，再次播放时从最近位置继续。
 - 使用 AndroidX Media3 在应用内播放视频。
 - 播放页面保留播放/暂停和进度条；左右键自动聚焦进度条并以 15 秒为单位预览跳转，按确认后才生效；上下键切换控件焦点，控制器显示时按返回仅关闭控制器。
 - 播放中错误会显示“重试”和“返回”，并重新获取播放签名。
@@ -112,17 +113,18 @@ ANDROID_KEY_PASSWORD
 app/src/main/java/com/ljworks/animemitv/
 ├── MainActivity.kt       # Activity、TV 页面与播放器 UI
 ├── Anime.kt              # 领域模型与解析
-├── Anime1DataSource.kt   # Anime1 网络访问与 Cookie
-├── AnimeViewModel.kt     # 页面状态、导航和用户事件
-└── ui/theme/             # Compose TV 主题
+├── Anime1DataSource.kt       # Anime1 网络访问与 Cookie
+├── AnimeViewModel.kt         # 页面状态、导航和用户事件
+├── EpisodeProgressStore.kt   # 单集观看进度本机存储
+└── ui/theme/                 # Compose TV 主题
 ```
 
 完整设计参见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
 ## 当前限制
 
-- 没有图片和播放历史。
+- 没有图片；观看进度不支持跨设备同步，也没有管理入口。
 - 没有字幕、倍速和自动连播。
 - Anime1 页面或接口结构变化时，解析逻辑可能需要同步更新。
-- 当前网络数据仅保存在内存中，不支持离线浏览；关注动画只保存本机动画 ID。
+- 当前网络数据仅保存在内存中，不支持离线浏览；关注动画 ID 和单集观看进度仅保存在本机。
 - 剧集分页按顺序加载，全部完成后显示列表；请求按页面流程取消，避免快速切换动画时旧结果覆盖当前页面。
