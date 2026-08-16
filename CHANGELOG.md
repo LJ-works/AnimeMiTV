@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/LJ-works/AnimeMiTV/compare/v1.7.1...v1.8.0) (2026-08-16)
+
+
+### Features
+
+* 保存单集观看进度并支持续播 ([#71](https://github.com/LJ-works/AnimeMiTV/issues/71)) ([c0fd8db](https://github.com/LJ-works/AnimeMiTV/commit/c0fd8db56312a3b555d2246ff57ca47063b50287))
+
 ## [1.7.1](https://github.com/LJ-works/AnimeMiTV/compare/v1.7.0...v1.7.1) (2026-08-15)
 
 
