@@ -64,6 +64,7 @@ data class AppUiState(
     val focusedEpisodeId: String? = null,
     val selectedEpisode: Episode? = null,
     val playback: LoadState<PlayableSource> = LoadState.Idle,
+    val episodeProgress: Map<String, EpisodeProgress> = emptyMap(),
     val followedAnimeSaveError: String? = null,
     val isExitConfirmVisible: Boolean = false,
 )
@@ -73,9 +74,13 @@ class AnimeViewModel(
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
     private val followedAnimeStore: FollowedAnimeStore = EmptyFollowedAnimeStore,
     private val elapsedRealtimeMillis: () -> Long = SystemClock::elapsedRealtime,
+    private val episodeProgressStore: EpisodeProgressStore = EmptyEpisodeProgressStore,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
-        AppUiState(followedAnimeIds = followedAnimeStore.load()),
+        AppUiState(
+            followedAnimeIds = followedAnimeStore.load(),
+            episodeProgress = episodeProgressStore.load(),
+        ),
     )
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
 
@@ -439,6 +444,16 @@ class AnimeViewModel(
         if (isCurrentEpisode(_uiState.value.selectedAnime?.id, episodeId)) {
             playbackJob?.cancel()
             _uiState.update { it.copy(playback = LoadState.Error(message)) }
+        }
+    }
+
+    fun saveEpisodeProgress(episodeId: String, positionMillis: Long, durationMillis: Long) {
+        val progress = EpisodeProgress(positionMillis.coerceAtLeast(0), durationMillis.coerceAtLeast(0))
+        _uiState.update { it.copy(episodeProgress = it.episodeProgress + (episodeId to progress)) }
+        try {
+            episodeProgressStore.save(episodeId, progress)
+        } catch (_: Exception) {
+            // Saving progress is best-effort and must never interrupt playback.
         }
     }
 

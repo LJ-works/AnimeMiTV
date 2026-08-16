@@ -569,6 +569,41 @@ class AnimeViewModelTest {
     }
 
     @Test
+    fun episodeProgressIsRestoredAndSaved() {
+        val progressStore = FakeEpisodeProgressStore(mapOf(episode.id to EpisodeProgress(30_000, 60_000)))
+        val viewModel = createViewModel(
+            FakeDataSource(),
+            CoroutineScope(Dispatchers.Unconfined),
+            episodeProgressStore = progressStore,
+        )
+
+        assertEquals(EpisodeProgress(30_000, 60_000), viewModel.uiState.value.episodeProgress[episode.id])
+
+        viewModel.saveEpisodeProgress(episode.id, -1, 90_000)
+
+        assertEquals(EpisodeProgress(0, 90_000), viewModel.uiState.value.episodeProgress[episode.id])
+        assertEquals(EpisodeProgress(0, 90_000), progressStore.items[episode.id])
+    }
+
+    @Test
+    fun failedEpisodeProgressSaveKeepsInMemoryProgress() {
+        val failingStore = object : EpisodeProgressStore {
+            override fun load() = emptyMap<String, EpisodeProgress>()
+
+            override fun save(episodeId: String, progress: EpisodeProgress) = error("存储失败")
+        }
+        val viewModel = createViewModel(
+            FakeDataSource(),
+            CoroutineScope(Dispatchers.Unconfined),
+            episodeProgressStore = failingStore,
+        )
+
+        viewModel.saveEpisodeProgress(episode.id, 30_000, 60_000)
+
+        assertEquals(EpisodeProgress(30_000, 60_000), viewModel.uiState.value.episodeProgress[episode.id])
+    }
+
+    @Test
     fun oldAnimeRequestCannotOverwriteNewAnime() {
         val animeB = anime.copy(id = 2000, title = "动画 B")
         val source = DeferredDataSource()
@@ -589,7 +624,8 @@ class AnimeViewModelTest {
         scope: CoroutineScope,
         followedAnimeStore: FollowedAnimeStore = EmptyFollowedAnimeStore,
         clock: FakeClock = FakeClock(),
-    ) = AnimeViewModel(dataSource, scope, followedAnimeStore, clock::now)
+        episodeProgressStore: EpisodeProgressStore = EmptyEpisodeProgressStore,
+    ) = AnimeViewModel(dataSource, scope, followedAnimeStore, clock::now, episodeProgressStore)
 
     private class FakeClock {
         var millis = 0L
@@ -707,6 +743,17 @@ class AnimeViewModelTest {
         override fun save(ids: Set<Int>): Boolean {
             if (saveSucceeds) this.ids = ids
             return saveSucceeds
+        }
+    }
+
+    private class FakeEpisodeProgressStore(initial: Map<String, EpisodeProgress> = emptyMap()) :
+        EpisodeProgressStore {
+        val items = initial.toMutableMap()
+
+        override fun load(): Map<String, EpisodeProgress> = items
+
+        override fun save(episodeId: String, progress: EpisodeProgress) {
+            items[episodeId] = progress
         }
     }
 

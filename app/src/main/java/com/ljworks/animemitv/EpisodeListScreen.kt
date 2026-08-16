@@ -1,7 +1,9 @@
 package com.ljworks.animemitv
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -9,12 +11,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,6 +36,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,6 +48,7 @@ import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -136,11 +144,26 @@ private fun EpisodeGrid(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 itemsIndexed(episodes, key = { _, episode -> episode.id }) { index, episode ->
+                    val progress = state.episodeProgress[episode.id]
+                    val progressFraction = if (progress != null && progress.durationMillis > 0) {
+                        (progress.positionMillis.toFloat() / progress.durationMillis).coerceIn(0f, 1f)
+                    } else {
+                        0f
+                    }
                     val cardModifier = Modifier
                         .let { modifier ->
                             if (index < 5) modifier.focusProperties { up = episodeSortRequester } else modifier
                         }
                         .onFocusChanged { if (it.isFocused) viewModel.rememberEpisodeFocus(episode.id) }
+                        .let { modifier ->
+                            if (progress == null) {
+                                modifier
+                            } else {
+                                modifier.semantics {
+                                    stateDescription = "看过，进度 ${(progressFraction * 100).roundToInt()}%"
+                                }
+                            }
+                        }
                         .let { modifier ->
                             if (episode.id == targetEpisodeId) {
                                 modifier
@@ -170,16 +193,40 @@ private fun EpisodeGrid(
                         scale = CardDefaults.scale(focusedScale = 1.05f),
                         shape = CardDefaults.shape(shape = RoundedCornerShape(12.dp)),
                     ) {
-                        Column(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.Top,
-                        ) {
+                        Box(modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 8.dp)) {
                             Text(
                                 episode.title,
-                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 18.sp),
+                                modifier = Modifier,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 18.sp),
                                 maxLines = 5,
                                 overflow = TextOverflow.Ellipsis,
                             )
+                            if (progress != null) {
+                                Box(
+                                    Modifier
+                                        .align(Alignment.BottomStart)
+                                        .size(7.dp)
+                                        .background(Color(0xFF8FE3E0), CircleShape)
+                                        .testTag("episode-watched-${episode.id}"),
+                                )
+                                Box(
+                                    Modifier
+                                        .align(Alignment.BottomStart)
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp)
+                                        .offset(y = (-2).dp)
+                                        .height(3.dp)
+                                        .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
+                                        .testTag("episode-progress-${episode.id}"),
+                                ) {
+                                    Box(
+                                        Modifier
+                                            .fillMaxWidth(progressFraction)
+                                            .height(3.dp)
+                                            .background(Color(0xFF8FE3E0), RoundedCornerShape(2.dp)),
+                                    )
+                                }
+                            }
                         }
                     }
                 }

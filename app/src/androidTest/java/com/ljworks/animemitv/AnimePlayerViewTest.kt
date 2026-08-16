@@ -11,6 +11,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.SilenceMediaSource
 import androidx.media3.ui.PlayerView
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -21,6 +22,23 @@ import java.util.concurrent.atomic.AtomicBoolean
 class AnimePlayerViewTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun playerStartsAtSavedWatchProgress() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        lateinit var player: ExoPlayer
+
+        instrumentation.runOnMainSync {
+            player = ExoPlayer.Builder(instrumentation.targetContext).build()
+            preparePlayer(
+                player,
+                PlayableSource("https://video.example/episode.mp4"),
+                EpisodeProgress(30_000, 60_000),
+            )
+            assertEquals(30_000, player.currentPosition)
+            player.release()
+        }
+    }
 
     @Test
     fun firstDirectionKeyShowsAutomaticallyHiddenControls() {
