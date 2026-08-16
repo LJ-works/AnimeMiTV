@@ -41,6 +41,14 @@ class AnimePlayerViewTest {
     }
 
     @Test
+    fun playerKeepsScreenOn() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val view = LayoutInflater.from(context).inflate(R.layout.anime_player_view, null)
+
+        assertTrue("player must prevent the TV screensaver", view.keepScreenOn)
+    }
+
+    @Test
     fun firstDirectionKeyShowsAutomaticallyHiddenControls() {
         lateinit var view: AnimePlayerView
         lateinit var player: ExoPlayer
