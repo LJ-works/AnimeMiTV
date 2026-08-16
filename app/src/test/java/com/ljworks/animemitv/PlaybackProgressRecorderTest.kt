@@ -1,5 +1,10 @@
 package com.ljworks.animemitv
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -26,6 +31,27 @@ class PlaybackProgressRecorderTest {
         recorder.dispose(40_000, 60_000, isPlaying = false)
 
         assertEquals(EpisodeProgress(12_000, 60_000), saved.last())
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun activePlaybackIsSavedEveryTenSeconds() = runTest {
+        val saved = mutableListOf<EpisodeProgress>()
+        val recorder = recorder(saved)
+        val job = launch {
+            saveProgressEveryTenSeconds(
+                isPlaying = { true },
+                positionMillis = { 30_000 },
+                durationMillis = { 60_000 },
+                recorder = recorder,
+            )
+        }
+
+        advanceTimeBy(10_000)
+        runCurrent()
+
+        assertEquals(EpisodeProgress(30_000, 60_000), saved.single())
+        job.cancel()
     }
 
     @Test

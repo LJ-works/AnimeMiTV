@@ -29,6 +29,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.DefaultTimeBar
 import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -120,6 +121,18 @@ internal fun preparePlayer(player: Player, source: PlayableSource, progress: Epi
     player.playWhenReady = true
 }
 
+internal suspend fun saveProgressEveryTenSeconds(
+    isPlaying: () -> Boolean,
+    positionMillis: () -> Long,
+    durationMillis: () -> Long,
+    recorder: PlaybackProgressRecorder,
+) {
+    while (currentCoroutineContext().isActive) {
+        delay(10_000)
+        if (isPlaying()) recorder.playing(positionMillis(), durationMillis())
+    }
+}
+
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 @Composable
 private fun VideoPlayer(
@@ -187,10 +200,12 @@ private fun VideoPlayer(
         preparePlayer(player, source, progress)
     }
     LaunchedEffect(player, episodeId) {
-        while (isActive) {
-            delay(10_000)
-            if (player.isPlaying) progressRecorder.playing(player.currentPosition, player.duration)
-        }
+        saveProgressEveryTenSeconds(
+            isPlaying = { player.isPlaying },
+            positionMillis = { player.currentPosition },
+            durationMillis = { player.duration },
+            recorder = progressRecorder,
+        )
     }
     AndroidView(
         factory = {
