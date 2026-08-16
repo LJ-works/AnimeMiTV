@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/LJ-works/AnimeMiTV/compare/v1.8.0...v1.8.1) (2026-08-16)
+
+
+### Bug Fixes
+
+* prevent Google TV screensaver during playback ([#73](https://github.com/LJ-works/AnimeMiTV/issues/73)) ([b0b6a78](https://github.com/LJ-works/AnimeMiTV/commit/b0b6a7840a0fb3d7e95b307f2944cf5efd4a2c24))
+
 ## [1.8.0](https://github.com/LJ-works/AnimeMiTV/compare/v1.7.1...v1.8.0) (2026-08-16)
 
 
